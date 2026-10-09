@@ -30,7 +30,7 @@ SkuLens; mağaza, depo veya saha ortamında internet bağlantısına ihtiyaç du
 | **Görsel Vektörleme** | Google MediaPipe Tasks Vision (`0.10.14`) | `mobilenet_v3_small.tflite` (1024 boyutlu Float vektör) |
 | **Vektör Veritabanı** | ObjectBox 4.0.3 (HNSW Index) | Yüksek hızlı yerel vektör arama, `COSINE` mesafesi |
 | **Asenkron Yapı** | Kotlin Coroutines & StateFlow | UI ve IO iş parçacıklarının katı ayrımı |
-| **Mimari** | MVVM + Repository (Elle DI) | Sade, test edilebilir ve bağımsız bileşenler |
+| **Mimari** | MVVM + Clean Architecture | Domain, Data, Presentation, Engine ve Util katmanları |
 
 ---
 
@@ -44,15 +44,32 @@ SkuLens/
 │   │   │   ├── assets/
 │   │   │   │   └── mobilenet_v3_small.tflite       # 1024-dim MediaPipe embedding modeli
 │   │   │   ├── kotlin/com/coder/skulens/
-│   │   │   │   ├── App.kt                          # Application sınıfı (ObjectBox ve Repo başlatımı)
-│   │   │   │   ├── CameraCapture.kt                # CameraX önizleme ve kare yakalama bileşeni
-│   │   │   │   ├── ImagePreprocessor.kt            # Kademeli küçültme, EXIF ve URI decode hattı
-│   │   │   │   ├── MainActivity.kt                 # Tek aktivite, Edge-to-Edge Compose girişi
-│   │   │   │   ├── MainScreen.kt                   # Ara ve Ekle sekmeleri, sonuç kartları
-│   │   │   │   ├── ProductEntity.kt                # ObjectBox HnswIndex varlığı (1024L vektör)
-│   │   │   │   ├── ProductRepository.kt            # Vektör sorguları, dosya yönetimi ve iş kuralları
-│   │   │   │   ├── ProductViewModel.kt             # UI durum yönetimi ve IO asenkron akışları
-│   │   │   │   └── VectorEngine.kt                 # MediaPipe ImageEmbedder entegrasyonu
+│   │   │   │   ├── App.kt                          # Application sınıfı & DI
+│   │   │   │   ├── engine/                         # Vektör ve ML model motoru
+│   │   │   │   │   └── VectorEngine.kt             # MediaPipe ImageEmbedder entegrasyonu
+│   │   │   │   ├── util/                           # Yardımcı sınıflar & araçlar
+│   │   │   │   │   └── ImagePreprocessor.kt        # Kademeli küçültme, EXIF ve URI decode
+│   │   │   │   ├── domain/                         # İş kuralları & soyutlamalar (Clean Architecture)
+│   │   │   │   │   ├── model/
+│   │   │   │   │   │   └── SearchResult.kt         # Arama sonucu domain modeli
+│   │   │   │   │   ├── repository/
+│   │   │   │   │   │   └── ProductRepository.kt    # Repository arayüzü (Interface)
+│   │   │   │   │   └── usecase/
+│   │   │   │   │       ├── SaveProductUseCase.kt   # Ürün kaydetme use case'i
+│   │   │   │   │       └── SearchProductUseCase.kt # Ürün arama use case'i
+│   │   │   │   ├── data/                           # Veri katmanı & kalıcılık
+│   │   │   │   │   ├── local/entity/
+│   │   │   │   │   │   └── ProductEntity.kt        # ObjectBox HnswIndex varlığı (1024L vektör)
+│   │   │   │   │   └── repository/
+│   │   │   │   │       └── ProductRepositoryImpl.kt # Repository implementasyonu & dosya yönetimi
+│   │   │   │   ├── presentation/                   # MVVM UI katmanı (Compose)
+│   │   │   │   │   ├── MainActivity.kt             # Tek aktivite, Edge-to-Edge giriş
+│   │   │   │   │   ├── MainScreen.kt               # Ara ve Ekle sekmeleri ekranı
+│   │   │   │   │   ├── ProductViewModel.kt         # UI durum yönetimi (StateFlow)
+│   │   │   │   │   ├── SearchState.kt              # UI durum tanımı (Sealed Interface)
+│   │   │   │   │   └── components/                 # Yeniden kullanılabilir UI bileşenleri
+│   │   │   │   │       ├── CameraCapture.kt        # CameraX önizleme ve yakalama
+│   │   │   │   │       └── ProductResultCard.kt    # Arama sonucu kartı ve görsel yükleme
 │   │   │   └── AndroidManifest.xml
 │   │   └── test/
 │   ├── build.gradle.kts
@@ -110,7 +127,7 @@ Plandaki hedef başarı kriteri: **20–30 gerçek ürünle testte ilk sonuçta 
 2. **Arama Doğrulaması:** Ürünleri **Ara** sekmesinden tekrar fotoğraflayarak veya galeriden seçerek sorgulayın.
 3. **Eşik Değeri Ayarı (`DEFAULT_MIN_SIMILARITY`):**
    - Doğru eşleşmelerin benzerlik skorları ile yanlış/alakasız eşleşmelerin skorları gözlemlenir.
-   - [`ProductRepository.kt`](file:///Users/coderacjhp/Downloads/Coder%20Projects/SkuLens/app/src/main/kotlin/com/coder/skulens/ProductRepository.kt) içerisindeki `DEFAULT_MIN_SIMILARITY` sabiti (varsayılan: `0.60f`) test sonuçlarına göre kalibre edilebilir.
+   - [`ProductRepository.kt`](file:///Users/coderacjhp/Downloads/Coder%20Projects/SkuLens/app/src/main/kotlin/com/coder/skulens/domain/repository/ProductRepository.kt) içerisindeki `DEFAULT_MIN_SIMILARITY` sabiti (varsayılan: `0.60f`) test sonuçlarına göre kalibre edilebilir.
 4. **Fotoğraf Doğrulaması:** Kartta listelenen fotoğraf, eşleşen SKU'ya ait en yüksek skorlu kayıtlı fotoğraf olmalıdır.
 
 ---

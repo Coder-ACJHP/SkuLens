@@ -1,6 +1,9 @@
 package com.coder.skulens
 
 import android.app.Application
+import com.coder.skulens.data.MyObjectBox
+import com.coder.skulens.data.ProductRepository
+import com.coder.skulens.engine.VectorEngine
 import io.objectbox.BoxStore
 import java.io.File
 

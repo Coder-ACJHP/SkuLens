@@ -1,23 +1,19 @@
-package com.coder.skulens
+package com.coder.skulens.ui
 
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.coder.skulens.data.ProductRepository
+import com.coder.skulens.data.SearchResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-sealed interface SearchState {
-    data object Idle : SearchState
-    data object Loading : SearchState
-    data class Found(val results: List<SearchResult>) : SearchState
-    data object NoMatch : SearchState
-    data class Error(val message: String) : SearchState
-}
-
-class ProductViewModel(private val repository: ProductRepository) : ViewModel() {
+class ProductViewModel(
+    private val repository: ProductRepository
+) : ViewModel() {
 
     private val _searchState = MutableStateFlow<SearchState>(SearchState.Idle)
     val searchState: StateFlow<SearchState> = _searchState

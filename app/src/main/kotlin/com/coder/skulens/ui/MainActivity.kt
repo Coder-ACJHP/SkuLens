@@ -1,4 +1,4 @@
-package com.coder.skulens
+package com.coder.skulens.ui
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,6 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.coder.skulens.App
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -15,7 +16,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val factory = viewModelFactory {
-            initializer { ProductViewModel((application as App).repository) }
+            initializer {
+                val app = application as App
+                ProductViewModel(app.repository)
+            }
         }
         val viewModel = ViewModelProvider(this, factory)[ProductViewModel::class.java]
 

@@ -1,4 +1,4 @@
-package com.coder.skulens
+package com.coder.skulens.engine
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -34,10 +34,14 @@ class VectorEngine(context: Context) {
             .firstOrNull()
             ?.floatEmbedding()
 
-        check(vector == null || vector.size.toLong() == ProductEntity.EMBEDDING_DIM) {
-            "Model ${vector?.size} boyutlu vektör üretti, EMBEDDING_DIM=${ProductEntity.EMBEDDING_DIM}. " +
-                "ProductEntity içindeki değeri güncelle (ve uygulamayı kaldırıp yeniden kur)."
+        check(vector == null || vector.size.toLong() == EMBEDDING_DIM) {
+            "Model ${vector?.size} boyutlu vektör üretti, EMBEDDING_DIM=$EMBEDDING_DIM. " +
+                "Model değişirse EMBEDDING_DIM değerini güncelle (ve uygulamayı kaldırıp yeniden kur)."
         }
         return vector
+    }
+
+    companion object {
+        const val EMBEDDING_DIM = 1024L // mobilenet_v3_small; model değişirse güncelle
     }
 }

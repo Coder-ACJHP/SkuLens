@@ -1,5 +1,6 @@
-package com.coder.skulens
+package com.coder.skulens.data
 
+import com.coder.skulens.engine.VectorEngine
 import io.objectbox.annotation.Entity
 import io.objectbox.annotation.HnswIndex
 import io.objectbox.annotation.Id
@@ -15,10 +16,10 @@ class ProductEntity(
     var imageFile: String = "",
 
     // dimensions, .tflite modelinin çıktı boyutuyla birebir aynı olmalı
-    @HnswIndex(dimensions = EMBEDDING_DIM, distanceType = VectorDistanceType.COSINE)
+    @HnswIndex(dimensions = VectorEngine.EMBEDDING_DIM, distanceType = VectorDistanceType.COSINE)
     var imageVector: FloatArray? = null
 ) {
     companion object {
-        const val EMBEDDING_DIM = 1024L // mobilenet_v3_small; model değişirse güncelle
+        const val EMBEDDING_DIM = VectorEngine.EMBEDDING_DIM
     }
 }

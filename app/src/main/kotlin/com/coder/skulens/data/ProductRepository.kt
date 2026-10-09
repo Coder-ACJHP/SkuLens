@@ -1,18 +1,14 @@
-package com.coder.skulens
+package com.coder.skulens.data
 
 import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.net.Uri
+import com.coder.skulens.engine.ImagePreprocessor
+import com.coder.skulens.engine.VectorEngine
 import io.objectbox.BoxStore
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
-
-data class SearchResult(
-    val sku: String,
-    val similarity: Float,
-    val imagePath: String // eşleşen kaydın fotoğrafının tam yolu
-)
 
 class ProductRepository(
     boxStore: BoxStore,
@@ -45,7 +41,7 @@ class ProductRepository(
 
     fun searchProduct(
         bitmap: Bitmap,
-        maxResults: Int = 5,
+        maxResults: Int = DEFAULT_MAX_RESULTS,
         minSimilarity: Float = DEFAULT_MIN_SIMILARITY
     ): List<SearchResult> {
         val queryVector = vectorEngine.extractVector(bitmap) ?: return emptyList()
@@ -85,6 +81,7 @@ class ProductRepository(
     fun productCount(): Long = productBox.count()
 
     companion object {
-        const val DEFAULT_MIN_SIMILARITY = 0.6f // TEST İLE AYARLA
+        const val DEFAULT_MAX_RESULTS = 5
+        const val DEFAULT_MIN_SIMILARITY = 0.6f
     }
 }

@@ -1,4 +1,4 @@
-package com.coder.skulens
+package com.coder.skulens.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -33,6 +33,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import com.coder.skulens.engine.ImagePreprocessor
+import com.coder.skulens.engine.rotate
 import java.util.concurrent.Executors
 
 @Composable
@@ -105,9 +107,14 @@ fun CameraCapture(
                     captureExecutor, // ağır işler (toBitmap, döndürme, 512px küçültme) UI thread'inde yapılmaz
                     object : ImageCapture.OnImageCapturedCallback() {
                         override fun onCaptureSuccess(image: ImageProxy) {
-                            val oriented = image.toBitmap().rotate(image.imageInfo.rotationDegrees)
+                            val raw = image.toBitmap()
+                            val oriented = raw.rotate(image.imageInfo.rotationDegrees)
+                            if (oriented !== raw) raw.recycle()
                             image.close()
-                            val resized = ImagePreprocessor.resize(oriented) // ≤512px'e en iyi kalitede
+
+                            val resized = ImagePreprocessor.resize(oriented)
+                            if (resized !== oriented) oriented.recycle()
+
                             ContextCompat.getMainExecutor(context).execute { onCaptured(resized) }
                         }
                         override fun onError(exception: ImageCaptureException) { /* loglanabilir */ }
