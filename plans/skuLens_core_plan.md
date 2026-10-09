@@ -55,7 +55,7 @@ dependencies {
 }
 ```
 
-Model dosyası: `app/src/main/assets/mobilenet_v3_small.tflite`
+Model dosyası: `../app/src/main/assets/mobilenet_v3_small.tflite`
 `AndroidManifest.xml` içine: `<uses-permission android:name="android.permission.CAMERA" />`
 
 ## 4. Mesafe Tipi Kararı
@@ -818,7 +818,7 @@ Plandaki tüm adımlar kod tabanında uygulanmış ve Gradle üzerinden derlener
 | **Bölüm 2 (Aşama 1-2)** | Çekirdek, Kamera, Galeri, UI | CameraX, ObjectBox, MediaPipe, Jetpack Compose | ✅ Tamamlandı |
 | **Bölüm 2 (Aşama 3)** | Doğruluk Testi | Saha / Cihaz testi (Bölüm 12) | ⏳ Cihazda Test Edilecek |
 | **Bölüm 2 (Aşama 4)** | İnce Ayar ve Paketleme | `./gradlew assembleDebug` (APK hazır) | ✅ Tamamlandı |
-| **Bölüm 3** | Teknoloji Yığını & Bağımlılıklar | `build.gradle.kts`, `app/build.gradle.kts`, `AndroidManifest.xml` | ✅ Tamamlandı |
+| **Bölüm 3** | Teknoloji Yığını & Bağımlılıklar | `../build.gradle.kts`, `app/build.gradle.kts`, `AndroidManifest.xml` | ✅ Tamamlandı |
 | **Bölüm 4** | Mesafe Tipi Kararı (COSINE) | `ProductEntity.kt` (`VectorDistanceType.COSINE`), `ProductRepository.kt` | ✅ Tamamlandı |
 | **Bölüm 5** | Veritabanı Modeli & Saklama | `ProductEntity.kt`, `App.kt`, `filesDir/product_images/` | ✅ Tamamlandı |
 | **Bölüm 6** | Görüntü Ön İşleme (512px) | `ImagePreprocessor.kt` (kademeli küçültme, `inSampleSize`, EXIF) | ✅ Tamamlandı |
@@ -845,8 +845,8 @@ Plandaki tüm adımlar kod tabanında uygulanmış ve Gradle üzerinden derlener
 ./gradlew assembleDebug
 # BUILD SUCCESSFUL
 ```
-- **Oluşturulan APK:** `app/build/outputs/apk/debug/app-debug.apk`
-- **Model Varlığı:** `app/src/main/assets/mobilenet_v3_small.tflite` (3.9 MB, doğrulandı)
+- **Oluşturulan APK:** `../app/build/outputs/apk/debug/app-debug.apk`
+- **Model Varlığı:** `../app/src/main/assets/mobilenet_v3_small.tflite` (3.9 MB, doğrulandı)
 
 ### 14.4. Saha Testi Operasyonel Adımları (Bölüm 12)
 
