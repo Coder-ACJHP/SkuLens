@@ -29,5 +29,4 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-    /// This is for testing testBranch
 }
