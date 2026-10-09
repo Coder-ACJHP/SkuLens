@@ -134,3 +134,4 @@ Plandaki hedef başarı kriteri: **20–30 gerçek ürünle testte ilk sonuçta 
 
 ## 📄 Lisans
 Bu proje [LICENSE](LICENSE) dosyası altında lisanslanmıştır.
+
