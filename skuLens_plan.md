@@ -804,3 +804,56 @@ fun ProductImage(path: String, modifier: Modifier = Modifier) {
 5. **Eşik olmadan arama her zaman N sonuç döner.** Eşik ve "Eşleşme bulunamadı" durumu MVP'nin parçası, sonradan eklenecek bir şey değil.
 6. **Bu dokümandaki kod derlenip test edilmedi.** Sürüm farklarında (özellikle ObjectBox sorgu API'si ve CameraX sürümü) küçük düzeltmeler gerekebilir.
 7. **Fotoğraf saklama:** Fotoğraflar `filesDir/product_images/` altında JPEG (kalite 90, ≤512px) olarak tutulur ve entity'de sadece dosya adı saklanır. Kayıt sırasında DB yazımı başarısız olursa dosya silinir (yetim dosya kalmaz). Ürün silme v2'de eklenirse DB kaydıyla birlikte dosya da silinmelidir. Kartta fotoğraf `ContentScale.Crop` ile kareye kırpılarak gösterilir; bu sadece görüntüleme içindir, saklanan dosya kırpılmaz.
+
+
+## 14. Uygulama ve Doğrulama Raporu (Verification)
+
+Plandaki tüm adımlar kod tabanında uygulanmış ve Gradle üzerinden derlenerek doğrulanmıştır.
+
+### 14.1. Adım ve Bölüm Doğrulama Matrisi
+
+| Bölüm / Aşama | Plan Başlığı | İlgili Kod Dosyası / Bileşen | Durum |
+| :--- | :--- | :--- | :---: |
+| **Bölüm 1** | Amaç ve Kapsam | `MainScreen.kt`, `ProductRepository.kt`, `ImagePreprocessor.kt` | ✅ Tamamlandı |
+| **Bölüm 2 (Aşama 1-2)** | Çekirdek, Kamera, Galeri, UI | CameraX, ObjectBox, MediaPipe, Jetpack Compose | ✅ Tamamlandı |
+| **Bölüm 2 (Aşama 3)** | Doğruluk Testi | Saha / Cihaz testi (Bölüm 12) | ⏳ Cihazda Test Edilecek |
+| **Bölüm 2 (Aşama 4)** | İnce Ayar ve Paketleme | `./gradlew assembleDebug` (APK hazır) | ✅ Tamamlandı |
+| **Bölüm 3** | Teknoloji Yığını & Bağımlılıklar | `build.gradle.kts`, `app/build.gradle.kts`, `AndroidManifest.xml` | ✅ Tamamlandı |
+| **Bölüm 4** | Mesafe Tipi Kararı (COSINE) | `ProductEntity.kt` (`VectorDistanceType.COSINE`), `ProductRepository.kt` | ✅ Tamamlandı |
+| **Bölüm 5** | Veritabanı Modeli & Saklama | `ProductEntity.kt`, `App.kt`, `filesDir/product_images/` | ✅ Tamamlandı |
+| **Bölüm 6** | Görüntü Ön İşleme (512px) | `ImagePreprocessor.kt` (kademeli küçültme, `inSampleSize`, EXIF) | ✅ Tamamlandı |
+| **Bölüm 7** | Çekirdek Motor (MediaPipe) | `VectorEngine.kt` (`mobilenet_v3_small.tflite`, 1024-dim check) | ✅ Tamamlandı |
+| **Bölüm 8** | Repository Mimarisi | `ProductRepository.kt` (tekilleştirme, yetim dosya temizliği, minSimilarity) | ✅ Tamamlandı |
+| **Bölüm 9** | ViewModel & State | `ProductViewModel.kt` (`SearchState`, `Dispatchers.IO`, StateFlow) | ✅ Tamamlandı |
+| **Bölüm 10** | Kamera Entegrasyonu (CameraX) | `CameraCapture.kt` (arka plan executor, bellek içi yakalama, izin akışı) | ✅ Tamamlandı |
+| **Bölüm 11** | Kullanıcı Arayüzü (Compose) | `MainScreen.kt` (Ara & Ekle sekmeleri, PhotoPicker, sonuç kartı) | ✅ Tamamlandı |
+| **Bölüm 12** | Doğruluk Testi Yönergesi | `ProductRepository.kt` (`DEFAULT_MIN_SIMILARITY = 0.6f`) | ⏳ Saha Testi Bekliyor |
+| **Bölüm 13** | Kritik Notlar Kontrolü | Tüm mimari ve bellek/thread disiplini kuralları | ✅ Tamamlandı |
+
+### 14.2. Kritik Notlar Kontrol Listesi
+
+- [x] **Thread Disiplini:** Arama, ön işleme ve vektör çıkarma işlemleri `Dispatchers.IO` ve arka plan `captureExecutor` üzerinde koşar; UI thread asla bloke edilmez.
+- [x] **Bellek ve OOM Koruması:** Galeri seçimlerinde `inSampleSize` ile 2 kat paylı decode edilir, kademeli küçültme uygulanır ve geçici bitmap'ler recycle edilir.
+- [x] **Model ve Boyut Denetimi:** `ProductEntity.EMBEDDING_DIM = 1024L` ve `VectorEngine.extractVector` içinde boyut uyuşmazlığı kontrolü (`check`) mevcuttur.
+- [x] **Yetim Dosya Koruması:** `ProductRepository.saveProduct` içinde veritabanı yazma hatasında JPEG dosyası derhal diskten silinir (`file.delete()`).
+- [x] **Eşik ve Boş Eşleşme:** Benzerlik skoru eşik (`0.60f`) altındaysa veya kayıt yoksa `SearchState.NoMatch` ile "Eşleşme bulunamadı" gösterilir.
+- [x] **Fotoğraf Doğrulaması:** Kartta listelenen fotoğraf, eşleşen SKU'ya ait en yüksek skorlu kayıtlı görseldir.
+
+### 14.3. Derleme Çıktısı
+
+```bash
+./gradlew assembleDebug
+# BUILD SUCCESSFUL
+```
+- **Oluşturulan APK:** `app/build/outputs/apk/debug/app-debug.apk`
+- **Model Varlığı:** `app/src/main/assets/mobilenet_v3_small.tflite` (3.9 MB, doğrulandı)
+
+### 14.4. Saha Testi Operasyonel Adımları (Bölüm 12)
+
+1. APK'yı test cihazına yükleyin:
+   ```bash
+   adb install -r app/build/outputs/apk/debug/app-debug.apk
+   ```
+2. 20-30 gerçek ürün için **Ekle** sekmesinden 1-2 farklı açıdan fotoğraf kaydedin.
+3. Ürünleri **Ara** sekmesinden test ederek Top-1 doğruluk oranını ölçün (Hedef: %90+).
+4. İhtiyaç halinde `ProductRepository.kt` içerisindeki `DEFAULT_MIN_SIMILARITY` değerini kalibre edin.
