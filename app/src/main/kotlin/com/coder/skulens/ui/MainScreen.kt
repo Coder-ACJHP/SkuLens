@@ -13,7 +13,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,24 +23,28 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material3.Button
@@ -59,7 +62,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -68,8 +70,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -82,7 +86,6 @@ import com.coder.skulens.ui.theme.PrimaryContainer
 import com.coder.skulens.ui.theme.PrimaryFixed
 import com.coder.skulens.ui.theme.Secondary
 import com.coder.skulens.ui.theme.SecondaryContainer
-import com.coder.skulens.ui.theme.SecondaryFixed
 import com.coder.skulens.ui.theme.SuccessContainer
 import com.coder.skulens.ui.theme.Surface
 import com.coder.skulens.ui.theme.SurfaceContainer
@@ -90,17 +93,19 @@ import com.coder.skulens.ui.theme.SurfaceContainerHigh
 import com.coder.skulens.ui.theme.SurfaceContainerHighest
 import com.coder.skulens.ui.theme.SurfaceContainerLow
 import com.coder.skulens.ui.theme.SurfaceContainerLowest
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 
 @Composable
 fun MainScreen(viewModel: ProductViewModel) {
-    // Initial tab set to 1 ("Ekle" - Add Screen) as requested
-    var selectedTab by remember { mutableIntStateOf(1) }
+    // Start with Search tab (tab = 0) as requested
+    var selectedTab by remember { mutableIntStateOf(0) }
 
     Scaffold(
         containerColor = Surface,
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding(),
         topBar = {
             TopHeaderAndNav(
                 selectedTab = selectedTab,
@@ -142,14 +147,13 @@ fun TopHeaderAndNav(
         modifier = Modifier
             .fillMaxWidth()
             .background(Surface)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
     ) {
-        // Top Brand & Offline Telemetry Row
+        // Top Brand & Offline Telemetry Row (Removed tab label as requested)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
@@ -185,15 +189,9 @@ fun TopHeaderAndNav(
                     )
                 }
             }
-
-            Text(
-                text = if (selectedTab == 0) "Sku Search" else "Sku Add",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp
-            )
         }
 
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(6.dp))
 
         // Stitch Segmented Dual-Pill Nav Container
         Row(
@@ -261,24 +259,21 @@ private fun NavPill(
 @Composable
 fun AddTab(viewModel: ProductViewModel) {
     val message by viewModel.message.collectAsState()
-    var sku by remember { mutableStateOf("") }
-    var angleCount by remember { mutableLongStateOf(0L) }
-    val clipboardManager = LocalClipboardManager.current
+    var skuInput by remember { mutableStateOf("") }
+    var confirmedSku by remember { mutableStateOf("") }
 
-    // Update saved angle count whenever sku or message changes
-    LaunchedEffect(sku, message) {
-        withContext(Dispatchers.IO) {
-            angleCount = viewModel.getAngleCount(sku)
-        }
-    }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val clipboardManager = LocalClipboardManager.current
 
     val galleryPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        if (uri != null) viewModel.saveNewProduct(sku, uri)
+        if (uri != null && confirmedSku.isNotBlank()) {
+            viewModel.saveNewProduct(confirmedSku, uri)
+        }
     }
 
-    val isSkuReady = sku.trim().isNotBlank()
+    val isConfirmed = confirmedSku.isNotBlank()
 
     Column(
         modifier = Modifier
@@ -287,7 +282,7 @@ fun AddTab(viewModel: ProductViewModel) {
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Top SKU Input Card (Stitch Screen 7 / 8)
+        // SKU Card
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -310,12 +305,12 @@ fun AddTab(viewModel: ProductViewModel) {
                     Row(
                         modifier = Modifier
                             .clip(CircleShape)
-                            .background(if (isSkuReady) PrimaryFixed else SurfaceContainerHighest)
+                            .background(if (isConfirmed) PrimaryFixed else SurfaceContainerHighest)
                             .padding(horizontal = 8.dp, vertical = 3.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        if (isSkuReady) {
+                        if (isConfirmed) {
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = null,
@@ -323,7 +318,7 @@ fun AddTab(viewModel: ProductViewModel) {
                                 modifier = Modifier.size(13.dp)
                             )
                             Text(
-                                text = "Geçerli Kod",
+                                text = "Onaylandı",
                                 color = Primary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -336,7 +331,7 @@ fun AddTab(viewModel: ProductViewModel) {
                                     .background(Secondary)
                             )
                             Text(
-                                text = "Hazır",
+                                text = "Giriş Bekleniyor",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 11.sp
                             )
@@ -344,65 +339,124 @@ fun AddTab(viewModel: ProductViewModel) {
                     }
                 }
 
-                // SKU Text Input Well
-                OutlinedTextField(
-                    value = sku,
-                    onValueChange = { sku = it },
-                    textStyle = CodeSku,
-                    placeholder = {
-                        Text(
-                            text = "örn. 8690123456789",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Tag,
-                            contentDescription = null,
-                            tint = Secondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    },
-                    trailingIcon = {
-                        if (isSkuReady) {
-                            Row {
-                                IconButton(onClick = { clipboardManager.setText(AnnotatedString(sku.trim())) }) {
-                                    Icon(
-                                        imageVector = Icons.Default.ContentCopy,
-                                        contentDescription = "Kopyala",
-                                        tint = Secondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                IconButton(onClick = { sku = "" }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Clear,
-                                        contentDescription = "Temizle",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        } else {
+                if (isConfirmed) {
+                    // Confirmed SKU View (Stable, user can copy or edit)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(SurfaceContainerLowest)
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             Icon(
-                                imageVector = Icons.Default.QrCodeScanner,
+                                imageVector = Icons.Default.Tag,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                tint = Secondary,
                                 modifier = Modifier.size(20.dp)
                             )
+                            Text(
+                                text = confirmedSku,
+                                style = CodeSku,
+                                color = Primary
+                            )
                         }
-                    },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = SurfaceContainerLowest,
-                        unfocusedContainerColor = SurfaceContainerLowest,
-                        focusedBorderColor = Primary,
-                        unfocusedBorderColor = Color.Transparent
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            IconButton(onClick = { clipboardManager.setText(AnnotatedString(confirmedSku)) }) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = "Kopyala",
+                                    tint = Secondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            IconButton(onClick = {
+                                confirmedSku = ""
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Düzenle",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Input TextField with Done keyboard action
+                    OutlinedTextField(
+                        value = skuInput,
+                        onValueChange = { skuInput = it },
+                        textStyle = CodeSku,
+                        placeholder = {
+                            Text(
+                                text = "örn. 8690123456789",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Tag,
+                                contentDescription = null,
+                                tint = Secondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        trailingIcon = {
+                            Row {
+                                if (skuInput.isNotEmpty()) {
+                                    IconButton(onClick = { skuInput = "" }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Clear,
+                                            contentDescription = "Temizle",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            if (skuInput.trim().isNotBlank()) {
+                                                confirmedSku = skuInput.trim()
+                                                keyboardController?.hide()
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Onayla",
+                                            tint = Primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                if (skuInput.trim().isNotBlank()) {
+                                    confirmedSku = skuInput.trim()
+                                    keyboardController?.hide()
+                                }
+                            }
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = SurfaceContainerLowest,
+                            unfocusedContainerColor = SurfaceContainerLowest,
+                            focusedBorderColor = Primary,
+                            unfocusedBorderColor = Color.Transparent
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
                 // Subtitle Helper Prompt
                 Row(
@@ -416,7 +470,7 @@ fun AddTab(viewModel: ProductViewModel) {
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        text = if (isSkuReady) "Fotoğraf çekerek veya seçerek vektör çıkarın." else "Önce SKU girin. Barkod veya stok kodunu yazın.",
+                        text = if (isConfirmed) "SKU onaylandı. Ürün fotoğrafı çekin veya galeriden seçin." else "SKU yazıp klavyeden 'Bitti' veya ✓ butonuna basın.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -449,22 +503,15 @@ fun AddTab(viewModel: ProductViewModel) {
             }
         }
 
-        // Camera Section: Active Viewfinder (Screen 8) or Locked State (Screen 7)
-        if (isSkuReady) {
-            val nextAngleIndex = (angleCount + 1).coerceAtMost(3)
-            val angleLabel = when (nextAngleIndex) {
-                1L -> "ÖN YÜZ"
-                2L -> "YAN"
-                else -> "DETAY"
-            }
-
+        // Camera Section: Active Viewfinder only when SKU is confirmed
+        if (isConfirmed) {
             CameraCapture(
                 captureLabel = "Fotoğraf Çek ve Kaydet",
-                onCaptured = { bitmap -> viewModel.saveNewProduct(sku, bitmap) },
-                topBadgeText = "AÇI $nextAngleIndex/3 ($angleLabel)",
+                onCaptured = { bitmap -> viewModel.saveNewProduct(confirmedSku, bitmap) },
+                topBadgeText = "HD VEKTÖR ÇEKİMİ",
                 bottomHintText = "Ürünü Kadraja Hizalayın",
-                helperPrompt = "Aynı SKU için birden fazla açı ekleyebilirsin. Tanıma performansı artar.",
-                showAngleTelemetry = true,
+                helperPrompt = "Net ve aydınlık bir ürün görseli çekin.",
+                showOfflineModelBadge = true,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -499,7 +546,7 @@ fun AddTab(viewModel: ProductViewModel) {
                 }
             }
         } else {
-            // Stitch Screen 7: Locked Viewfinder Placeholder
+            // Locked Viewfinder Placeholder
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -536,36 +583,15 @@ fun AddTab(viewModel: ProductViewModel) {
                     )
 
                     Text(
-                        text = "Fotoğraf çekmek için önce geçerli bir SKU kodu tanımlayın.",
+                        text = "Fotoğraf çekmek için önce geçerli bir SKU kodu girip onaylayın.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
-
-                    Row(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(SurfaceContainerHigh)
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PhotoCamera,
-                            contentDescription = null,
-                            tint = Secondary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = "0 / 3 Açı Kayıtlı",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
             }
 
-            // Disabled Action Buttons (Screen 7)
+            // Disabled Action Buttons
             Button(
                 onClick = {},
                 enabled = false,
@@ -625,7 +651,7 @@ fun AddTab(viewModel: ProductViewModel) {
             }
         }
 
-        // Stitch Tip Card (Doğruluk Artırma İpucu)
+        // Tip Card
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -654,13 +680,13 @@ fun AddTab(viewModel: ProductViewModel) {
 
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        text = "Doğruluk Artırma İpucu",
+                        text = "Görsel Eşleme İpucu",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Bir ürün için 3 farklı açıdan fotoğraf eklemek eşleştirme doğruluğunu %98'e çıkarır.",
+                        text = "Ürünün ön yüzünü veya ambalajını iyi aydınlatılmış bir ortamda net şekilde kadraja alarak kaydedin.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         lineHeight = 18.sp

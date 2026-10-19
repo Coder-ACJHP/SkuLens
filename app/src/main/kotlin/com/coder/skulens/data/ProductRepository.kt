@@ -18,12 +18,6 @@ class ProductRepository(
 ) {
     private val productBox = boxStore.boxFor(ProductEntity::class.java)
 
-    fun getAngleCount(sku: String): Long {
-        val clean = sku.trim()
-        if (clean.isEmpty()) return 0L
-        return productBox.query(ProductEntity_.sku.equal(clean)).build().use { it.count() }
-    }
-
     fun saveProduct(sku: String, bitmap: Bitmap): Boolean {
         // Tek hat: vektör ve saklanan fotoğraf aynı (≤512px) görüntüden gelir
         val prepared = ImagePreprocessor.resize(bitmap)

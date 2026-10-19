@@ -72,7 +72,7 @@ fun CameraCapture(
     topBadgeText: String = "HD VEKTÖR",
     bottomHintText: String = "Barkod veya Ambalajı Hizalayın",
     helperPrompt: String = "Ürünü net ve düz tutun",
-    showAngleTelemetry: Boolean = false
+    showOfflineModelBadge: Boolean = false
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -206,7 +206,7 @@ fun CameraCapture(
                 },
                 topBadgeText = topBadgeText,
                 bottomHintText = bottomHintText,
-                showAngleTelemetry = showAngleTelemetry
+                showOfflineModelBadge = showOfflineModelBadge
             )
         }
 

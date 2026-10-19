@@ -55,7 +55,7 @@ fun ViewfinderHud(
     onToggleTorch: () -> Unit,
     topBadgeText: String = "HD VEKTÖR",
     bottomHintText: String = "Barkod veya Ambalajı Hizalayın",
-    showAngleTelemetry: Boolean = false,
+    showOfflineModelBadge: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     // Pulse animation for telemetry indicator
@@ -151,7 +151,7 @@ fun ViewfinderHud(
         BoxWithConstraints(
             modifier = Modifier
                 .align(Alignment.Center)
-                .size(width = 220.dp, height = if (showAngleTelemetry) 250.dp else 220.dp)
+                .size(220.dp)
         ) {
             val reticleHeight = maxHeight
 
@@ -234,54 +234,26 @@ fun ViewfinderHud(
                 )
             }
 
-            if (showAngleTelemetry) {
+            if (showOfflineModelBadge) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(PrimaryContainer.copy(alpha = 0.85f))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(PrimaryContainer.copy(alpha = 0.85f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Verified,
-                            contentDescription = null,
-                            tint = SecondaryFixed,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = "Çevrimdışı Model Aktif",
-                            color = OnPrimaryContainer,
-                            fontSize = 11.sp
-                        )
-                    }
-
-                    // Multi-angle dots
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(SecondaryFixed)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(InverseOnSurface.copy(alpha = 0.4f))
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(InverseOnSurface.copy(alpha = 0.4f))
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Verified,
+                        contentDescription = null,
+                        tint = SecondaryFixed,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = "Çevrimdışı Model Aktif",
+                        color = OnPrimaryContainer,
+                        fontSize = 11.sp
+                    )
                 }
             }
         }
