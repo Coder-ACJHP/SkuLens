@@ -102,10 +102,7 @@ fun MainScreen(viewModel: ProductViewModel) {
 
     Scaffold(
         containerColor = Surface,
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .navigationBarsPadding(),
+        modifier = Modifier.fillMaxSize(),
         topBar = {
             TopHeaderAndNav(
                 selectedTab = selectedTab,
@@ -116,6 +113,7 @@ fun MainScreen(viewModel: ProductViewModel) {
         Box(
             modifier = Modifier
                 .padding(padding)
+                .navigationBarsPadding()
                 .fillMaxSize()
         ) {
             if (selectedTab == 0) {
@@ -147,6 +145,7 @@ fun TopHeaderAndNav(
         modifier = Modifier
             .fillMaxWidth()
             .background(Surface)
+            .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 6.dp)
     ) {
         // Top Brand & Offline Telemetry Row (Removed tab label as requested)
