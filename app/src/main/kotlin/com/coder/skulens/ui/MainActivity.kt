@@ -37,10 +37,10 @@ class MainActivity : ComponentActivity() {
         val factory = viewModelFactory {
             initializer {
                 val app = application as App
-                ProductViewModel(app.repository)
+                MainViewModel(app.repository)
             }
         }
-        val viewModel = ViewModelProvider(this, factory)[ProductViewModel::class.java]
+        val viewModel = ViewModelProvider(this, factory)[MainViewModel::class.java]
 
         setContent {
             SkuLensTheme {

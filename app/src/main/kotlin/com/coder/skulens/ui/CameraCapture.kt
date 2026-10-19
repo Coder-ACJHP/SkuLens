@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NoPhotography
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -72,7 +73,9 @@ fun CameraCapture(
     topBadgeText: String = "HD VEKTÖR",
     bottomHintText: String = "Barkod veya Ambalajı Hizalayın",
     helperPrompt: String = "Ürünü net ve düz tutun",
-    showOfflineModelBadge: Boolean = false
+    showOfflineModelBadge: Boolean = false,
+    onGalleryClick: (() -> Unit)? = null,
+    bottomContent: (@Composable () -> Unit)? = null
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -165,12 +168,11 @@ fun CameraCapture(
     }
 
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        // Viewfinder Container (4:5 Aspect Ratio matching Stitch design)
+        // Viewfinder Container
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f, fill = false)
-                .aspectRatio(4f / 5f)
+                .aspectRatio(4f / 3f)
                 .clip(RoundedCornerShape(16.dp))
                 .background(InverseSurface)
         ) {
@@ -182,7 +184,7 @@ fun CameraCapture(
                     providerFuture.addListener({
                         val provider = providerFuture.get()
                         val preview = Preview.Builder().build().also {
-                            it.setSurfaceProvider(previewView.surfaceProvider)
+                            it.surfaceProvider = previewView.surfaceProvider
                         }
                         provider.unbindAll()
                         camera = provider.bindToLifecycle(
@@ -286,6 +288,43 @@ fun CameraCapture(
                     letterSpacing = 0.5.sp
                 )
             }
+        }
+
+        if (onGalleryClick != null) {
+            Spacer(Modifier.height(10.dp))
+            Button(
+                onClick = onGalleryClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = SurfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                )
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PhotoLibrary,
+                        contentDescription = null,
+                        tint = Secondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "Galeriden Seç",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        if (bottomContent != null) {
+            Spacer(Modifier.height(10.dp))
+            bottomContent()
         }
     }
 }

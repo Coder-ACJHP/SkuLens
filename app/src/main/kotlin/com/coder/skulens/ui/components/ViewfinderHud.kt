@@ -151,7 +151,7 @@ fun ViewfinderHud(
         BoxWithConstraints(
             modifier = Modifier
                 .align(Alignment.Center)
-                .size(220.dp)
+                .size(150.dp)
         ) {
             val reticleHeight = maxHeight
 
