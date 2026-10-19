@@ -41,7 +41,7 @@ fun LockedCameraSection() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(16f / 10f)
+            .aspectRatio(1f / 1f)
             .clip(RoundedCornerShape(16.dp))
             .background(SurfaceContainerHighest),
         contentAlignment = Alignment.Center
@@ -111,9 +111,7 @@ fun LockedCameraSection() {
             )
         }
     }
-
-    Spacer(Modifier.height(10.dp))
-
+    
     Button(
         onClick = {},
         enabled = false,

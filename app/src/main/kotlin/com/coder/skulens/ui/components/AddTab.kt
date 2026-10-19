@@ -73,8 +73,6 @@ fun AddTab(viewModel: MainViewModel) {
             LockedCameraSection()
         }
 
-        VisualMappingTipCard()
-
         Spacer(Modifier.height(16.dp))
     }
 }

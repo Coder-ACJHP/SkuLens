@@ -172,7 +172,7 @@ fun CameraCapture(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(4f / 3f)
+                .aspectRatio(1f / 1f)
                 .clip(RoundedCornerShape(16.dp))
                 .background(InverseSurface)
         ) {
@@ -227,7 +227,8 @@ fun CameraCapture(
             Text(
                 text = helperPrompt,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(0.dp, 15.dp)
             )
         }
 
