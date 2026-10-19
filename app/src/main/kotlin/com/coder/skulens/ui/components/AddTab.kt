@@ -4,6 +4,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,6 +26,7 @@ fun AddTab(viewModel: MainViewModel) {
     val message by viewModel.message.collectAsState()
     val skuInput by viewModel.skuInput.collectAsState()
     val confirmedSku by viewModel.confirmedSku.collectAsState()
+    val isSaving by viewModel.isSaving.collectAsState()
     val isConfirmed = confirmedSku.isNotBlank()
 
     val galleryPicker = rememberLauncherForActivityResult(
@@ -33,46 +35,55 @@ fun AddTab(viewModel: MainViewModel) {
         viewModel.saveNewProduct(uri)
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        SkuInputCard(
-            skuInput = skuInput,
-            confirmedSku = confirmedSku,
-            isConfirmed = isConfirmed,
-            onSkuInputChange = viewModel::onSkuInputChange,
-            onClearInput = viewModel::clearSkuInput,
-            onConfirmSku = viewModel::confirmSku,
-            onEditSku = viewModel::editSku
-        )
-
-        FeedbackBanner(
-            message = message,
-            isSuccess = message?.let(viewModel::isSuccessMessage) ?: false,
-            onClearMessage = viewModel::clearMessage
-        )
-
-        if (isConfirmed) {
-            CameraCapture(
-                captureLabel = "Fotoğraf Çek ve Kaydet",
-                onCaptured = viewModel::saveNewProduct,
-                topBadgeText = "HD VEKTÖR ÇEKİMİ",
-                bottomHintText = "Ürünü Kadraja Hizalayın",
-                helperPrompt = "Net ve aydınlık bir ürün görseli çekin.",
-                showOfflineModelBadge = true,
-                onGalleryClick = {
-                    galleryPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                },
-                modifier = Modifier.fillMaxWidth()
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            SkuInputCard(
+                skuInput = skuInput,
+                confirmedSku = confirmedSku,
+                isConfirmed = isConfirmed,
+                onSkuInputChange = viewModel::onSkuInputChange,
+                onClearInput = viewModel::clearSkuInput,
+                onConfirmSku = viewModel::confirmSku,
+                onEditSku = viewModel::editSku
             )
-        } else {
-            LockedCameraSection()
+
+            if (isConfirmed) {
+                CameraCapture(
+                    captureLabel = "Fotoğraf Çek ve Kaydet",
+                    onCaptured = viewModel::saveNewProduct,
+                    topBadgeText = "HD VEKTÖR ÇEKİMİ",
+                    bottomHintText = "Ürünü Kadraja Hizalayın",
+                    helperPrompt = "Net ve aydınlık bir ürün görseli çekin.",
+                    showOfflineModelBadge = true,
+                    onGalleryClick = {
+                        galleryPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                LockedCameraSection()
+            }
+
+            Spacer(Modifier.height(16.dp))
         }
 
-        Spacer(Modifier.height(16.dp))
+        if (isSaving) {
+            FullScreenLoading(
+                type = LoadingType.Add,
+                isOverlay = true
+            )
+        }
+
+        FeedbackPopup(
+            message = message,
+            isSuccess = message?.let(viewModel::isSuccessMessage) ?: false,
+            onDismiss = viewModel::clearMessage
+        )
     }
 }

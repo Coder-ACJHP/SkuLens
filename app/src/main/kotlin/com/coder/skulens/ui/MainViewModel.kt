@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.coder.skulens.data.ProductRepository
 import com.coder.skulens.data.SearchResult
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -32,6 +33,9 @@ class MainViewModel(
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message
+
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving: StateFlow<Boolean> = _isSaving
 
     fun selectTab(tab: Int) {
         _selectedTab.value = tab
@@ -101,25 +105,45 @@ class MainViewModel(
 
     private fun runSave(sku: String, block: () -> Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
-            _message.value = try {
+            _isSaving.value = true
+            val startTime = System.currentTimeMillis()
+            val result = try {
                 if (block()) "Kaydedildi: $sku" else "Görsel işlenemedi"
             } catch (e: Exception) {
                 "Hata: ${e.message}"
             }
+            val elapsed = System.currentTimeMillis() - startTime
+            val remaining = MIN_LOADING_DURATION_MS - elapsed
+            if (remaining > 0) {
+                delay(remaining)
+            }
+            _message.value = result
+            _isSaving.value = false
         }
     }
 
     private fun runSearch(block: () -> List<SearchResult>) {
         viewModelScope.launch(Dispatchers.IO) {
             _searchState.value = SearchState.Loading
-            _searchState.value = try {
+            val startTime = System.currentTimeMillis()
+            val result = try {
                 val results = block()
                 if (results.isEmpty()) SearchState.NoMatch else SearchState.Found(results)
             } catch (e: Exception) {
                 SearchState.Error(e.message ?: "Bilinmeyen hata")
             }
+            val elapsed = System.currentTimeMillis() - startTime
+            val remaining = MIN_LOADING_DURATION_MS - elapsed
+            if (remaining > 0) {
+                delay(remaining)
+            }
+            _searchState.value = result
         }
     }
 
     fun clearMessage() { _message.value = null }
+
+    companion object {
+        private const val MIN_LOADING_DURATION_MS = 1000L
+    }
 }
