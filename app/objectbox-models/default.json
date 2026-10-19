@@ -5,7 +5,7 @@
   "entities": [
     {
       "id": "1:2358926658255183665",
-      "lastPropertyId": "4:3640865300244044216",
+      "lastPropertyId": "5:8580025593537049131",
       "name": "ProductEntity",
       "properties": [
         {
@@ -32,6 +32,11 @@
           "indexId": "2:1408339266080814980",
           "type": 28,
           "flags": 8
+        },
+        {
+          "id": "5:8580025593537049131",
+          "name": "creationDate",
+          "type": 6
         }
       ],
       "relations": []

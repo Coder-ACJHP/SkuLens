@@ -17,7 +17,9 @@ class ProductEntity(
 
     // dimensions, .tflite modelinin çıktı boyutuyla birebir aynı olmalı
     @HnswIndex(dimensions = VectorEngine.EMBEDDING_DIM, distanceType = VectorDistanceType.COSINE)
-    var imageVector: FloatArray? = null
+    var imageVector: FloatArray? = null,
+
+    var creationDate: Long = System.currentTimeMillis()
 ) {
     companion object {
         const val EMBEDDING_DIM = VectorEngine.EMBEDDING_DIM

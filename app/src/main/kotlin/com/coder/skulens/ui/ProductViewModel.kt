@@ -57,5 +57,7 @@ class ProductViewModel(
         }
     }
 
+    fun getAngleCount(sku: String): Long = repository.getAngleCount(sku)
+
     fun clearMessage() { _message.value = null }
 }

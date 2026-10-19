@@ -10,6 +10,14 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.coder.skulens.App
 
+import com.coder.skulens.ui.theme.SkuLensTheme
+
+import androidx.compose.animation.Crossfade
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -24,8 +32,15 @@ class MainActivity : ComponentActivity() {
         val viewModel = ViewModelProvider(this, factory)[ProductViewModel::class.java]
 
         setContent {
-            MaterialTheme {
-                MainScreen(viewModel = viewModel)
+            SkuLensTheme {
+                var showSplash by remember { mutableStateOf(true) }
+                Crossfade(targetState = showSplash, label = "splashTransition") { isSplash ->
+                    if (isSplash) {
+                        SplashScreen(onTimeout = { showSplash = false })
+                    } else {
+                        MainScreen(viewModel = viewModel)
+                    }
+                }
             }
         }
     }
