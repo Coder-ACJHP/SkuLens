@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.coder.skulens.ui.theme.CodeSku
@@ -55,13 +56,14 @@ fun SkuInputCard(
     onSkuInputChange: (String) -> Unit,
     onClearInput: () -> Unit,
     onConfirmSku: () -> Boolean,
-    onEditSku: () -> Unit
+    onEditSku: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val clipboardManager = LocalClipboardManager.current
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(SurfaceContainer)
@@ -81,9 +83,10 @@ fun SkuInputCard(
                 )
                 Row(
                     modifier = Modifier
+                        .height(24.dp)
                         .clip(CircleShape)
                         .background(if (isConfirmed) PrimaryFixed else SurfaceContainerHighest)
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                        .padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
@@ -117,13 +120,14 @@ fun SkuInputCard(
             }
 
             if (isConfirmed) {
-                // Confirmed SKU View (Stable, user can copy or edit)
+                // Confirmed SKU View (Fixed 56.dp height matching OutlinedTextField)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(56.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(SurfaceContainerLowest)
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .padding(start = 14.dp, end = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -143,8 +147,14 @@ fun SkuInputCard(
                             color = Primary
                         )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        IconButton(onClick = { clipboardManager.setText(AnnotatedString(confirmedSku)) }) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        IconButton(
+                            onClick = { clipboardManager.setText(AnnotatedString(confirmedSku)) },
+                            modifier = Modifier.size(36.dp)
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.ContentCopy,
                                 contentDescription = "Kopyala",
@@ -152,7 +162,10 @@ fun SkuInputCard(
                                 modifier = Modifier.size(18.dp)
                             )
                         }
-                        IconButton(onClick = onEditSku) {
+                        IconButton(
+                            onClick = onEditSku,
+                            modifier = Modifier.size(36.dp)
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = "Düzenle",
@@ -163,7 +176,7 @@ fun SkuInputCard(
                     }
                 }
             } else {
-                // Input TextField with Done keyboard action
+                // Input TextField with Done keyboard action (Fixed 56.dp height)
                 OutlinedTextField(
                     value = skuInput,
                     onValueChange = onSkuInputChange,
@@ -184,9 +197,12 @@ fun SkuInputCard(
                         )
                     },
                     trailingIcon = {
-                        Row {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             if (skuInput.isNotEmpty()) {
-                                IconButton(onClick = onClearInput) {
+                                IconButton(
+                                    onClick = onClearInput,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
                                     Icon(
                                         imageVector = Icons.Default.Clear,
                                         contentDescription = "Temizle",
@@ -199,7 +215,8 @@ fun SkuInputCard(
                                         if (onConfirmSku()) {
                                             keyboardController?.hide()
                                         }
-                                    }
+                                    },
+                                    modifier = Modifier.size(36.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Check,
@@ -227,14 +244,19 @@ fun SkuInputCard(
                         unfocusedBorderColor = Color.Transparent
                     ),
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
                 )
             }
 
-            // Subtitle Helper Prompt
+            // Subtitle Helper Prompt (Fixed 20.dp height)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(20.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Info,
@@ -245,7 +267,9 @@ fun SkuInputCard(
                 Text(
                     text = if (isConfirmed) "SKU onaylandı. Ürün fotoğrafı çekin veya galeriden seçin." else "SKU yazıp klavyeden 'Bitti' veya ✓ butonuna basın.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
