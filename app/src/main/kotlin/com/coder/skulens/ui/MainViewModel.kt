@@ -40,6 +40,9 @@ class MainViewModel(
     private val _duplicateProduct = MutableStateFlow<ProductItem?>(null)
     val duplicateProduct: StateFlow<ProductItem?> = _duplicateProduct
 
+    private val _stagedBitmaps = MutableStateFlow<List<Bitmap>>(emptyList())
+    val stagedBitmaps: StateFlow<List<Bitmap>> = _stagedBitmaps
+
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving
 
@@ -72,6 +75,7 @@ class MainViewModel(
             if (existing != null) {
                 _duplicateProduct.value = existing
             } else {
+                _stagedBitmaps.value = emptyList()
                 _confirmedSku.value = trimmed
             }
         }
@@ -80,7 +84,46 @@ class MainViewModel(
 
     fun editSku() {
         _confirmedSku.value = ""
+        _stagedBitmaps.value = emptyList()
         _duplicateProduct.value = null
+    }
+
+    fun addStagedAngle(bitmap: Bitmap) {
+        if (_stagedBitmaps.value.size < ProductRepository.MAX_ANGLES_PER_SKU) {
+            _stagedBitmaps.value = _stagedBitmaps.value + bitmap
+        }
+    }
+
+    fun addStagedAngle(uri: Uri?) {
+        if (uri == null) return
+        if (_stagedBitmaps.value.size >= ProductRepository.MAX_ANGLES_PER_SKU) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val bitmap = repository.decodeBitmapFromUri(uri)
+            if (bitmap != null) {
+                _stagedBitmaps.value = _stagedBitmaps.value + bitmap
+            }
+        }
+    }
+
+    fun removeStagedAngle(index: Int) {
+        val current = _stagedBitmaps.value.toMutableList()
+        if (index in current.indices) {
+            val removed = current.removeAt(index)
+            if (!removed.isRecycled) {
+                removed.recycle()
+            }
+            _stagedBitmaps.value = current
+        }
+    }
+
+    fun saveStagedProduct() {
+        val sku = _confirmedSku.value
+        val bitmaps = _stagedBitmaps.value
+        if (sku.isBlank() || bitmaps.isEmpty()) return
+
+        runSave(sku) {
+            repository.saveProduct(sku, bitmaps)
+        }
     }
 
     fun startNewSearch() {
@@ -130,11 +173,13 @@ class MainViewModel(
     fun dismissDuplicateProduct() {
         _duplicateProduct.value = null
         _confirmedSku.value = ""
+        _stagedBitmaps.value = emptyList()
     }
 
     fun resetAddState() {
         _skuInput.value = ""
         _confirmedSku.value = ""
+        _stagedBitmaps.value = emptyList()
         _duplicateProduct.value = null
     }
 
@@ -150,7 +195,7 @@ class MainViewModel(
                 when (val result = block()) {
                     is SaveProductResult.Success -> {
                         savedSuccessfully = true
-                        feedbackMessage = "Kaydedildi: $sku"
+                        feedbackMessage = "Kaydedildi: $sku (${result.newCount} açı ile)"
                     }
                     is SaveProductResult.AlreadyExists -> {
                         duplicateProduct = result.existingProduct
@@ -172,10 +217,12 @@ class MainViewModel(
             if (savedSuccessfully) {
                 _skuInput.value = ""
                 _confirmedSku.value = ""
+                _stagedBitmaps.value = emptyList()
                 _duplicateProduct.value = null
                 _message.value = feedbackMessage
             } else if (duplicateProduct != null) {
                 _confirmedSku.value = ""
+                _stagedBitmaps.value = emptyList()
                 _message.value = null
                 _duplicateProduct.value = duplicateProduct
             } else {

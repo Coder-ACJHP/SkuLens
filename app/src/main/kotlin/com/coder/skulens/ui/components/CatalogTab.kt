@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tag
@@ -43,6 +45,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -203,11 +206,18 @@ fun CatalogTab(
 
         // Product Detail Modal Dialog (Shared Generic Dialog)
         selectedProduct?.let { product ->
+            var activePhotoIndex by remember(product.sku) { mutableIntStateOf(0) }
+            val currentPhotoPath = product.allImagePaths.getOrElse(activePhotoIndex) { product.imagePath }
             ProductDetailsDialog(
                 title = "Ürün Detayı",
                 sku = product.sku,
-                imagePath = product.imagePath,
+                imagePath = currentPhotoPath,
                 creationDate = product.creationDate,
+                itemIndex = if (product.totalPhotosCount > 1) activePhotoIndex else null,
+                itemTotalCount = if (product.totalPhotosCount > 1) product.totalPhotosCount else null,
+                itemPagerLabel = "Açı",
+                onPreviousItem = { if (activePhotoIndex > 0) activePhotoIndex-- },
+                onNextItem = { if (activePhotoIndex < product.totalPhotosCount - 1) activePhotoIndex++ },
                 onDelete = { viewModel.deleteProduct(product) },
                 primaryButtonText = "Kapat",
                 onPrimaryClick = { viewModel.selectProduct(null) },
@@ -219,8 +229,8 @@ fun CatalogTab(
 
 /**
  * TableView cell showing:
- * - Square image at left
- * - Vertical 2 labels: top label for SKU, bottom label for creationDate
+ * - Square stacked image at left
+ * - Vertical 2 labels: top label for SKU, bottom label for creationDate & angle count
  */
 @Composable
 fun ProductCatalogCard(
@@ -247,11 +257,8 @@ fun ProductCatalogCard(
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left: Square Image
-        ProductImage(
-            path = item.imagePath,
-            modifier = Modifier.size(76.dp)
-        )
+        // Left: Stacked Images if >1
+        StackedProductImage(item = item)
 
         Spacer(Modifier.width(14.dp))
 
@@ -273,22 +280,110 @@ fun ProductCatalogCard(
 
             Spacer(Modifier.height(6.dp))
 
-            // Label 2: Creation Date
+            // Label 2: Creation Date + Angle Count
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Schedule,
-                    contentDescription = null,
-                    tint = OnSurfaceVariant,
-                    modifier = Modifier.size(14.dp)
-                )
-                Text(
-                    text = relativeDate,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = OnSurfaceVariant
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Schedule,
+                        contentDescription = null,
+                        tint = OnSurfaceVariant,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = relativeDate,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = OnSurfaceVariant
+                    )
+                }
+
+                if (item.totalPhotosCount > 1) {
+                    Text(
+                        text = "• ${item.totalPhotosCount} Açı",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Secondary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StackedProductImage(
+    item: ProductItem,
+    modifier: Modifier = Modifier
+) {
+    val count = item.totalPhotosCount
+    Box(
+        modifier = modifier.size(76.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        if (count >= 3) {
+            // Layer 3 (deepest)
+            Box(
+                modifier = Modifier
+                    .size(62.dp)
+                    .offset(x = 6.dp, y = (-6).dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(SurfaceContainerHigh)
+                    .border(1.dp, Secondary.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+            )
+        }
+        if (count >= 2) {
+            // Layer 2 (middle)
+            Box(
+                modifier = Modifier
+                    .size(66.dp)
+                    .offset(x = 3.dp, y = (-3).dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(SurfaceContainerHigh)
+                    .border(1.dp, Secondary.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+            )
+        }
+        // Layer 1 (Top image)
+        Box(
+            modifier = Modifier
+                .size(70.dp)
+                .clip(RoundedCornerShape(12.dp))
+        ) {
+            ProductImage(
+                path = item.imagePath,
+                modifier = Modifier.fillMaxSize()
+            )
+            if (count > 1) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(3.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color.Black.copy(alpha = 0.72f))
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PhotoLibrary,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(10.dp)
+                        )
+                        Text(
+                            text = "$count",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
         }
     }

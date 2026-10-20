@@ -93,6 +93,7 @@ fun ProductDetailsDialog(
     noticeMessage: String? = null,
     itemIndex: Int? = null,
     itemTotalCount: Int? = null,
+    itemPagerLabel: String = "Fotoğraf",
     onPreviousItem: (() -> Unit)? = null,
     onNextItem: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
@@ -292,7 +293,7 @@ fun ProductDetailsDialog(
                         }
 
                         Text(
-                            text = "${itemIndex + 1} / $itemTotalCount Eşleşme",
+                            text = "${itemIndex + 1} / $itemTotalCount $itemPagerLabel",
                             style = MaterialTheme.typography.labelSmall,
                             color = OnSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 12.dp)

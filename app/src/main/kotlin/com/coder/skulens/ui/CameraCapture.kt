@@ -47,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -59,6 +60,8 @@ import com.coder.skulens.engine.ImagePreprocessor
 import com.coder.skulens.engine.rotate
 import com.coder.skulens.ui.components.ViewfinderHud
 import com.coder.skulens.ui.theme.InverseSurface
+import com.coder.skulens.ui.theme.OnPrimary
+import com.coder.skulens.ui.theme.Primary
 import com.coder.skulens.ui.theme.PrimaryContainer
 import com.coder.skulens.ui.theme.Secondary
 import com.coder.skulens.ui.theme.SurfaceContainer
@@ -75,11 +78,24 @@ fun CameraCapture(
     bottomHintText: String = "Barkod veya Ambalajı Hizalayın",
     helperPrompt: String = "Ürünü net ve düz tutun",
     showOfflineModelBadge: Boolean = false,
+    secondaryButtonText: String? = null,
+    onSecondaryClick: (() -> Unit)? = null,
+    secondaryButtonEnabled: Boolean = true,
     onGalleryClick: (() -> Unit)? = null,
+    slotsContent: (@Composable () -> Unit)? = null,
     bottomContent: (@Composable () -> Unit)? = null
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    var isFlashing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isFlashing) {
+        if (isFlashing) {
+            kotlinx.coroutines.delay(120)
+            isFlashing = false
+        }
+    }
 
     var hasPermission by remember {
         mutableStateOf(
@@ -244,6 +260,22 @@ fun CameraCapture(
                 bottomHintText = bottomHintText,
                 showOfflineModelBadge = showOfflineModelBadge
             )
+
+            // Flash Overlay
+            if (isFlashing) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.85f))
+                )
+            }
+        }
+
+        // Slots Content (e.g. 3 thumbnail slots)
+        if (slotsContent != null) {
+            Spacer(Modifier.height(10.dp))
+            slotsContent()
         }
 
         // Ergonomic Helper Prompt
@@ -262,67 +294,143 @@ fun CameraCapture(
                 text = helperPrompt,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(0.dp, 15.dp)
+                modifier = Modifier.padding(0.dp, 10.dp)
             )
         }
 
-        // Primary Capture CTA Button (56dp height pill)
-        Spacer(Modifier.height(8.dp))
-        Button(
-            onClick = {
-                imageCapture.takePicture(
-                    captureExecutor,
-                    object : ImageCapture.OnImageCapturedCallback() {
-                        override fun onCaptureSuccess(image: ImageProxy) {
-                            val raw = image.toBitmap()
-                            val oriented = raw.rotate(image.imageInfo.rotationDegrees)
-                            if (oriented !== raw) raw.recycle()
-                            image.close()
-
-                            val resized = ImagePreprocessor.resize(oriented)
-                            if (resized !== oriented) oriented.recycle()
-
-                            ContextCompat.getMainExecutor(context).execute {
-                                onCaptured(resized)
-                            }
-                        }
-                        override fun onError(exception: ImageCaptureException) {
-                            // ignore or handle error
-                        }
-                    }
-                )
-            },
-            enabled = isActive && camera != null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = CircleShape,
-            colors = ButtonDefaults.buttonColors(containerColor = PrimaryContainer)
-        ) {
+        // Capture Buttons Row
+        Spacer(Modifier.height(4.dp))
+        if (secondaryButtonText != null) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Box(
+                Button(
+                    onClick = {
+                        imageCapture.takePicture(
+                            captureExecutor,
+                            object : ImageCapture.OnImageCapturedCallback() {
+                                override fun onCaptureSuccess(image: ImageProxy) {
+                                    val raw = image.toBitmap()
+                                    val oriented = raw.rotate(image.imageInfo.rotationDegrees)
+                                    if (oriented !== raw) raw.recycle()
+                                    image.close()
+
+                                    val resized = ImagePreprocessor.resize(oriented)
+                                    if (resized !== oriented) oriented.recycle()
+
+                                    ContextCompat.getMainExecutor(context).execute {
+                                        isFlashing = true
+                                        onCaptured(resized)
+                                    }
+                                }
+                                override fun onError(exception: ImageCaptureException) {}
+                            }
+                        )
+                    },
+                    enabled = isActive && camera != null,
                     modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
+                        .weight(1f)
+                        .height(56.dp),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryContainer)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.PhotoCamera,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PhotoCamera,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = captureLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = { onSecondaryClick?.invoke() },
+                    enabled = secondaryButtonEnabled,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (secondaryButtonEnabled) Primary else SurfaceContainerHigh,
+                        contentColor = if (secondaryButtonEnabled) OnPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    )
+                ) {
+                    Text(
+                        text = secondaryButtonText,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1
                     )
                 }
-                Text(
-                    text = captureLabel,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
-                )
+            }
+        } else {
+            Button(
+                onClick = {
+                    imageCapture.takePicture(
+                        captureExecutor,
+                        object : ImageCapture.OnImageCapturedCallback() {
+                            override fun onCaptureSuccess(image: ImageProxy) {
+                                val raw = image.toBitmap()
+                                val oriented = raw.rotate(image.imageInfo.rotationDegrees)
+                                if (oriented !== raw) raw.recycle()
+                                image.close()
+
+                                val resized = ImagePreprocessor.resize(oriented)
+                                if (resized !== oriented) oriented.recycle()
+
+                                ContextCompat.getMainExecutor(context).execute {
+                                    isFlashing = true
+                                    onCaptured(resized)
+                                }
+                            }
+                            override fun onError(exception: ImageCaptureException) {}
+                        }
+                    )
+                },
+                enabled = isActive && camera != null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryContainer)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PhotoCamera,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Text(
+                        text = captureLabel,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                }
             }
         }
 

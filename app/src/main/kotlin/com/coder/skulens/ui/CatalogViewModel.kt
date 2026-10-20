@@ -56,9 +56,9 @@ class CatalogViewModel(
 
     fun deleteProduct(product: ProductItem) {
         viewModelScope.launch(Dispatchers.IO) {
-            if (repository.deleteProduct(product.id)) {
-                _products.value = _products.value.filter { it.id != product.id }
-                if (_selectedProduct.value?.id == product.id) {
+            if (repository.deleteProduct(product)) {
+                _products.value = _products.value.filter { it.sku != product.sku }
+                if (_selectedProduct.value?.sku == product.sku) {
                     _selectedProduct.value = null
                 }
             }

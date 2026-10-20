@@ -69,6 +69,7 @@ fun SearchResultDialog(
         similarity = item.similarity,
         itemIndex = if (results.size > 1) currentIndex else null,
         itemTotalCount = if (results.size > 1) results.size else null,
+        itemPagerLabel = "Eşleşme",
         onPreviousItem = { if (currentIndex > 0) currentIndex-- },
         onNextItem = { if (currentIndex < results.size - 1) currentIndex++ },
         primaryButtonText = "Yeni Arama",
