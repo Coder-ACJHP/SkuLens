@@ -3,6 +3,7 @@ package com.coder.skulens.ui
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,9 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DocumentScanner
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,9 +25,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.coder.skulens.R
 import com.coder.skulens.ui.theme.OnPrimary
 import com.coder.skulens.ui.theme.Primary
 import com.coder.skulens.ui.theme.PrimaryContainer
@@ -60,25 +61,18 @@ fun SplashScreen(onTimeout: () -> Unit) {
                 .scale(scale.value)
                 .alpha(alpha.value)
         ) {
-            Box(
+            Image(
+                painter = painterResource(id = R.drawable.ic_app_icon),
+                contentDescription = "SiriusLens App Icon",
                 modifier = Modifier
-                    .size(88.dp)
-                    .clip(CircleShape)
-                    .background(PrimaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.DocumentScanner,
-                    contentDescription = null,
-                    tint = SecondaryFixed,
-                    modifier = Modifier.size(44.dp)
-                )
-            }
+                    .size(92.dp)
+                    .clip(RoundedCornerShape(22.dp))
+            )
 
             Spacer(Modifier.height(20.dp))
 
             Text(
-                text = "SkuLens",
+                text = "SiriusLens",
                 color = OnPrimary,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,

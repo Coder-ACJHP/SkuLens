@@ -79,7 +79,7 @@ fun TopHeaderAndNav(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "SkuLens",
+                    text = "SiriusLens",
                     style = MaterialTheme.typography.titleLarge,
                     color = Primary,
                     fontWeight = FontWeight.Bold,
