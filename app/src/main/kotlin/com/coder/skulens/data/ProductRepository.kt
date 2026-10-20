@@ -81,6 +81,31 @@ class ProductRepository(
 
     fun productCount(): Long = productBox.count()
 
+    fun getAllProducts(): List<ProductItem> {
+        return productBox.query()
+            .orderDesc(ProductEntity_.creationDate)
+            .build()
+            .use { query ->
+                query.find().map { entity ->
+                    ProductItem(
+                        id = entity.id,
+                        sku = entity.sku,
+                        imagePath = File(imagesDir, entity.imageFile).absolutePath,
+                        creationDate = entity.creationDate
+                    )
+                }
+            }
+    }
+
+    fun deleteProduct(id: Long): Boolean {
+        val entity = productBox.get(id) ?: return false
+        val file = File(imagesDir, entity.imageFile)
+        if (file.exists()) {
+            file.delete()
+        }
+        return productBox.remove(id)
+    }
+
     companion object {
         const val DEFAULT_MAX_RESULTS = 5
         const val DEFAULT_MIN_SIMILARITY = 0.6f

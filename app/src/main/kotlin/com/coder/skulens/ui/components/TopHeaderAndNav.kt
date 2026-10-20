@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -132,6 +133,13 @@ fun TopHeaderAndNav(
                 isSelected = selectedTab == 1,
                 modifier = Modifier.weight(1f),
                 onClick = { onTabSelected(1) }
+            )
+            NavPill(
+                label = "Katalog",
+                icon = Icons.AutoMirrored.Filled.FormatListBulleted,
+                isSelected = selectedTab == 2,
+                modifier = Modifier.weight(1f),
+                onClick = { onTabSelected(2) }
             )
         }
     }

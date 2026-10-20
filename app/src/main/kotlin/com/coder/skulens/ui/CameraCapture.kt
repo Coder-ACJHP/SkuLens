@@ -70,6 +70,7 @@ fun CameraCapture(
     captureLabel: String,
     onCaptured: (Bitmap) -> Unit,
     modifier: Modifier = Modifier,
+    isActive: Boolean = true,
     topBadgeText: String = "HD VEKTÖR",
     bottomHintText: String = "Barkod veya Ambalajı Hizalayın",
     helperPrompt: String = "Ürünü net ve düz tutun",
@@ -158,12 +159,52 @@ fun CameraCapture(
 
     var camera by remember { mutableStateOf<Camera?>(null) }
     var isTorchOn by remember { mutableStateOf(false) }
+    var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
+    var previewView by remember { mutableStateOf<PreviewView?>(null) }
 
     val imageCapture = remember { ImageCapture.Builder().build() }
     val captureExecutor = remember { Executors.newSingleThreadExecutor() }
     DisposableEffect(Unit) {
         onDispose {
             captureExecutor.shutdown()
+        }
+    }
+
+    LaunchedEffect(context) {
+        val providerFuture = ProcessCameraProvider.getInstance(context)
+        providerFuture.addListener({
+            cameraProvider = providerFuture.get()
+        }, ContextCompat.getMainExecutor(context))
+    }
+
+    DisposableEffect(cameraProvider, previewView, isActive, lifecycleOwner) {
+        val provider = cameraProvider
+        val pv = previewView
+        if (provider != null && pv != null && isActive) {
+            val preview = Preview.Builder().build().also {
+                it.surfaceProvider = pv.surfaceProvider
+            }
+            try {
+                provider.unbindAll()
+                camera = provider.bindToLifecycle(
+                    lifecycleOwner,
+                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    preview,
+                    imageCapture
+                )
+            } catch (e: Exception) {
+                camera = null
+            }
+        } else {
+            provider?.unbindAll()
+            camera = null
+            isTorchOn = false
+        }
+
+        onDispose {
+            provider?.unbindAll()
+            camera = null
+            isTorchOn = false
         }
     }
 
@@ -179,22 +220,12 @@ fun CameraCapture(
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
-                    val previewView = PreviewView(ctx)
-                    val providerFuture = ProcessCameraProvider.getInstance(ctx)
-                    providerFuture.addListener({
-                        val provider = providerFuture.get()
-                        val preview = Preview.Builder().build().also {
-                            it.surfaceProvider = previewView.surfaceProvider
-                        }
-                        provider.unbindAll()
-                        camera = provider.bindToLifecycle(
-                            lifecycleOwner,
-                            CameraSelector.DEFAULT_BACK_CAMERA,
-                            preview,
-                            imageCapture
-                        )
-                    }, ContextCompat.getMainExecutor(ctx))
-                    previewView
+                    PreviewView(ctx).also {
+                        previewView = it
+                    }
+                },
+                onRelease = {
+                    previewView = null
                 }
             )
 
@@ -202,9 +233,12 @@ fun CameraCapture(
             ViewfinderHud(
                 isTorchOn = isTorchOn,
                 onToggleTorch = {
-                    val nextState = !isTorchOn
-                    camera?.cameraControl?.enableTorch(nextState)
-                    isTorchOn = nextState
+                    val cam = camera
+                    if (cam != null) {
+                        val nextState = !isTorchOn
+                        cam.cameraControl.enableTorch(nextState)
+                        isTorchOn = nextState
+                    }
                 },
                 topBadgeText = topBadgeText,
                 bottomHintText = bottomHintText,
@@ -258,6 +292,7 @@ fun CameraCapture(
                     }
                 )
             },
+            enabled = isActive && camera != null,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),

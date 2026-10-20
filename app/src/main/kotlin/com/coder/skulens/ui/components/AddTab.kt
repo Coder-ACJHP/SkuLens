@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -35,11 +36,19 @@ fun AddTab(viewModel: MainViewModel) {
         viewModel.saveNewProduct(uri)
     }
 
+    val scrollState = rememberScrollState()
+
+    LaunchedEffect(isConfirmed) {
+        if (!isConfirmed) {
+            scrollState.scrollTo(0)
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
@@ -57,6 +66,7 @@ fun AddTab(viewModel: MainViewModel) {
                 CameraCapture(
                     captureLabel = "Fotoğraf Çek ve Kaydet",
                     onCaptured = viewModel::saveNewProduct,
+                    isActive = !isSaving && message == null,
                     topBadgeText = "HD VEKTÖR ÇEKİMİ",
                     bottomHintText = "Ürünü Kadraja Hizalayın",
                     helperPrompt = "Net ve aydınlık bir ürün görseli çekin.",

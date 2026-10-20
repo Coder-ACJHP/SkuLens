@@ -64,6 +64,11 @@ class MainViewModel(
 
     fun startNewSearch() {
         _isCapturing.value = true
+        _searchState.value = SearchState.Idle
+    }
+
+    fun dismissSearchResult() {
+        _searchState.value = SearchState.Idle
     }
 
     fun isSuccessMessage(msg: String): Boolean =
@@ -81,7 +86,6 @@ class MainViewModel(
         runSave(sku) { repository.saveProduct(sku, bitmap) }
 
     fun searchSimilarProducts(bitmap: Bitmap) {
-        _isCapturing.value = false
         runSearch { repository.searchProduct(bitmap) }
     }
 
@@ -98,17 +102,25 @@ class MainViewModel(
 
     fun searchSimilarProducts(uri: Uri?) {
         if (uri != null) {
-            _isCapturing.value = false
             runSearch { repository.searchProduct(uri) }
         }
+    }
+
+    fun resetAddState() {
+        _skuInput.value = ""
+        _confirmedSku.value = ""
     }
 
     private fun runSave(sku: String, block: () -> Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             _isSaving.value = true
             val startTime = System.currentTimeMillis()
+            var savedSuccessfully = false
             val result = try {
-                if (block()) "Kaydedildi: $sku" else "Görsel işlenemedi"
+                if (block()) {
+                    savedSuccessfully = true
+                    "Kaydedildi: $sku"
+                } else "Görsel işlenemedi"
             } catch (e: Exception) {
                 "Hata: ${e.message}"
             }
@@ -116,6 +128,10 @@ class MainViewModel(
             val remaining = MIN_LOADING_DURATION_MS - elapsed
             if (remaining > 0) {
                 delay(remaining)
+            }
+            if (savedSuccessfully) {
+                _skuInput.value = ""
+                _confirmedSku.value = ""
             }
             _message.value = result
             _isSaving.value = false

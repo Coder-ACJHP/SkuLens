@@ -9,13 +9,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.coder.skulens.App
 import com.coder.skulens.ui.components.AddTab
+import com.coder.skulens.ui.components.CatalogTab
 import com.coder.skulens.ui.components.SearchTab
 import com.coder.skulens.ui.components.TopHeaderAndNav
 import com.coder.skulens.ui.theme.Surface
 
 @Composable
-fun MainScreen(viewModel: MainViewModel) {
+fun MainScreen(
+    viewModel: MainViewModel,
+    catalogViewModel: CatalogViewModel = run {
+        val context = LocalContext.current
+        viewModel(
+            factory = viewModelFactory {
+                initializer {
+                    val app = context.applicationContext as App
+                    CatalogViewModel(app.repository)
+                }
+            }
+        )
+    }
+) {
     val selectedTab by viewModel.selectedTab.collectAsState()
 
     Scaffold(
@@ -34,10 +53,13 @@ fun MainScreen(viewModel: MainViewModel) {
                 .navigationBarsPadding()
                 .fillMaxSize()
         ) {
-            if (selectedTab == 0) {
-                SearchTab(viewModel)
-            } else {
-                AddTab(viewModel)
+            when (selectedTab) {
+                0 -> SearchTab(viewModel)
+                1 -> AddTab(viewModel)
+                else -> CatalogTab(
+                    viewModel = catalogViewModel,
+                    onNavigateToAddTab = { viewModel.selectTab(1) }
+                )
             }
         }
     }
