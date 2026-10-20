@@ -1,10 +1,15 @@
 package com.coder.skulens
 
+import android.graphics.Bitmap
+import android.graphics.RectF
 import com.coder.skulens.data.ProductRepository
-import com.coder.skulens.data.SaveProductResult
+import com.coder.skulens.engine.BoundingBoxCropper
+import com.coder.skulens.engine.TwoStageVisionPipeline
+import com.coder.skulens.engine.ViTImageEmbedder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.sqrt
 
 class ProductRulesTest {
 
@@ -30,8 +35,10 @@ class ProductRulesTest {
 
     @Test
     fun testEmbeddingDimensionConstant() {
-        assertEquals(1280L, com.coder.skulens.engine.VectorEngine.EMBEDDING_DIM)
-        assertEquals(1280L, com.coder.skulens.data.ProductEntity.EMBEDDING_DIM)
+        // ViT (Fashion-CLIP) 512-dim contract
+        assertEquals(512L, TwoStageVisionPipeline.EMBEDDING_DIM)
+        assertEquals(512L, com.coder.skulens.data.ProductEntity.EMBEDDING_DIM)
+        assertEquals(512, ViTImageEmbedder.DEFAULT_EMBEDDING_DIM)
     }
 
     @Test
@@ -47,6 +54,52 @@ class ProductRulesTest {
 
         assertEquals(1f, ProductRepository.cosineSimilarity(v1, v2), 0.0001f)
         assertEquals(0f, ProductRepository.cosineSimilarity(v1, v3), 0.0001f)
+    }
+
+    @Test
+    fun testMaxScoreMatchingSelectsHighestAngleScore() {
+        // Mock a 2-stage pipeline with dummy strategies for mathematical scoring
+        val mockPipeline = object : com.coder.skulens.engine.IVisualSearchPipeline {
+            override val embeddingDimension: Int = 3
+            override fun extractEmbedding(bitmap: Bitmap): FloatArray? = null
+
+            override fun calculateCosineSimilarity(vectorA: FloatArray, vectorB: FloatArray): Float =
+                ProductRepository.cosineSimilarity(vectorA, vectorB)
+
+            override fun maxScoreMatch(queryVector: FloatArray, candidateVectors: List<FloatArray>): Float {
+                if (candidateVectors.isEmpty()) return 0.0f
+                return candidateVectors.maxOf { calculateCosineSimilarity(queryVector, it) }
+            }
+        }
+
+        val query = floatArrayOf(0.9f, 0.1f, 0.0f)
+        // Angle 1: Front (orthogonal / low similarity)
+        val angle1 = floatArrayOf(0.0f, 1.0f, 0.0f)
+        // Angle 2: Side (moderate similarity)
+        val angle2 = floatArrayOf(0.6f, 0.6f, 0.0f)
+        // Angle 3: Back (high visual similarity)
+        val angle3 = floatArrayOf(0.92f, 0.08f, 0.0f)
+
+        val candidateAngles = listOf(angle1, angle2, angle3)
+        val maxScore = mockPipeline.maxScoreMatch(query, candidateAngles)
+
+        val expectedMax = ProductRepository.cosineSimilarity(query, angle3)
+        assertEquals(expectedMax, maxScore, 0.0001f)
+        assertTrue("Max score must exceed 0.95", maxScore > 0.95f)
+    }
+
+    @Test
+    fun testL2NormalizationProducesUnitVector() {
+        val rawVector = floatArrayOf(3.0f, 4.0f, 0.0f) // Magnitude = 5.0
+        val normalized = ViTImageEmbedder.normalizeL2(rawVector)
+
+        assertEquals(3.0f / 5.0f, normalized[0], 0.0001f)
+        assertEquals(4.0f / 5.0f, normalized[1], 0.0001f)
+        assertEquals(0.0f, normalized[2], 0.0001f)
+
+        // Euclidean norm of normalized vector must be exactly 1.0
+        val sumSquares = normalized.sumOf { (it * it).toDouble() }
+        assertEquals(1.0, sqrt(sumSquares), 0.0001)
     }
 
     @Test

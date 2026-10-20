@@ -1,6 +1,6 @@
 package com.coder.skulens.data
 
-import com.coder.skulens.engine.VectorEngine
+import com.coder.skulens.engine.TwoStageVisionPipeline
 import io.objectbox.annotation.Entity
 import io.objectbox.annotation.HnswIndex
 import io.objectbox.annotation.Id
@@ -15,13 +15,13 @@ class ProductEntity(
     // Fotoğraf dosyasının adı (yol değil); dosya filesDir/product_images/ altında durur
     var imageFile: String = "",
 
-    // dimensions, .tflite modelinin çıktı boyutuyla birebir aynı olmalı
-    @HnswIndex(dimensions = VectorEngine.EMBEDDING_DIM, distanceType = VectorDistanceType.COSINE)
+    // dimensions, ViT modelinin çıktı boyutuyla birebir aynı olmalı (Fashion-CLIP 512-dim)
+    @HnswIndex(dimensions = TwoStageVisionPipeline.EMBEDDING_DIM, distanceType = VectorDistanceType.COSINE)
     var imageVector: FloatArray? = null,
 
     var creationDate: Long = System.currentTimeMillis()
 ) {
     companion object {
-        const val EMBEDDING_DIM = VectorEngine.EMBEDDING_DIM
+        const val EMBEDDING_DIM = TwoStageVisionPipeline.EMBEDDING_DIM
     }
 }

@@ -5,29 +5,21 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
+import androidx.core.graphics.scale
 import androidx.exifinterface.media.ExifInterface
 import kotlin.math.max
 import kotlin.math.roundToInt
-import androidx.core.graphics.scale
 
+/**
+ * Image processing utilities for loading, orienting, and resizing bitmaps.
+ *
+ * Note: Naive center-cropping has been removed in favor of Stage 1 [ITightCropper]
+ * which dynamically detects the target clothing bounding box and eliminates background noise.
+ */
 object ImagePreprocessor {
 
     const val DEFAULT_MAX_SIDE = 512
     var activeMaxSide: Int = DEFAULT_MAX_SIDE
-
-    const val MAX_SIDE = 512
-
-    /**
-     * Vizör (1:1) ile örtüşmesi ve modelin en-boy oranını bozmadan işlemesi için
-     * görseli merkezden kare olarak kırpar. Görsel zaten kare ise dokunulmaz.
-     */
-    fun cropToSquare(src: Bitmap): Bitmap {
-        if (src.width == src.height) return src
-        val size = kotlin.math.min(src.width, src.height)
-        val x = (src.width - size) / 2
-        val y = (src.height - size) / 2
-        return Bitmap.createBitmap(src, x, y, size, size)
-    }
 
     /** Galeri/dosya kaynağı. IO thread'inde çağır. Decode edilemezse null döner. */
     fun fromUri(resolver: ContentResolver, uri: Uri, targetMaxSide: Int = activeMaxSide): Bitmap? {
@@ -45,16 +37,13 @@ object ImagePreprocessor {
             BitmapFactory.decodeStream(it, null, options)
         } ?: return null
 
-        // 3) EXIF yönünü uygula, kareye kırp, sonra kaliteli küçült
+        // 3) EXIF yönünü uygula ve en-boy oranını koruyarak kaliteli küçült
         val degrees = resolver.openInputStream(uri)?.use { exifDegrees(ExifInterface(it)) } ?: 0
         val oriented = decoded.rotate(degrees)
         if (oriented !== decoded) decoded.recycle()
 
-        val cropped = cropToSquare(oriented)
-        if (cropped !== oriented) oriented.recycle()
-
-        val result = resize(cropped, targetMaxSide)
-        if (result !== cropped) cropped.recycle()
+        val result = resize(oriented, targetMaxSide)
+        if (result !== oriented) oriented.recycle()
         return result
     }
 

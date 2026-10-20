@@ -80,6 +80,10 @@ android {
         compose = true
         buildConfig = true
     }
+
+    androidResources {
+        noCompress += "tflite"
+    }
 }
 
 dependencies {
@@ -104,8 +108,9 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
     implementation("androidx.camera:camera-view:$cameraxVersion")
 
-    // MediaPipe Vision
+    // MediaPipe Vision & TensorFlow Lite
     implementation("com.google.mediapipe:tasks-vision:0.10.14")
+    implementation("org.tensorflow:tensorflow-lite:2.16.1")
 
     // EXIF
     implementation("androidx.exifinterface:exifinterface:1.3.7")

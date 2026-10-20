@@ -334,11 +334,8 @@ fun CameraCapture(
                             val oriented = raw.rotate(image.imageInfo.rotationDegrees)
                             if (oriented !== raw) raw.recycle()
 
-                            val cropped = ImagePreprocessor.cropToSquare(oriented)
-                            if (cropped !== oriented) oriented.recycle()
-
-                            val resized = ImagePreprocessor.resize(cropped)
-                            if (resized !== cropped) cropped.recycle()
+                            val resized = ImagePreprocessor.resize(oriented)
+                            if (resized !== oriented) oriented.recycle()
 
                             ContextCompat.getMainExecutor(context).execute {
                                 isCapturing = false

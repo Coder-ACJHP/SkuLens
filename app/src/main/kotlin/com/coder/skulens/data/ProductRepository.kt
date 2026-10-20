@@ -2,10 +2,11 @@ package com.coder.skulens.data
 
 import android.content.ContentResolver
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
+import com.coder.skulens.engine.IVisualSearchPipeline
 import com.coder.skulens.engine.ImagePreprocessor
-import com.coder.skulens.engine.VectorEngine
 import io.objectbox.BoxStore
 import io.objectbox.query.QueryBuilder.StringOrder
 import java.io.File
@@ -18,13 +19,73 @@ sealed interface SaveProductResult {
     data class Failure(val message: String? = null) : SaveProductResult
 }
 
+/**
+ * Repository coordinating product persistence and visual search.
+ *
+ * Implements clean architecture by depending on [IVisualSearchPipeline] (Strategy Pattern)
+ * instead of concrete ML models.
+ */
 class ProductRepository(
     boxStore: BoxStore,
-    private val vectorEngine: VectorEngine,
+    private val pipeline: IVisualSearchPipeline,
     private val contentResolver: ContentResolver,
     private val imagesDir: File
 ) {
     private val productBox = boxStore.boxFor(ProductEntity::class.java)
+
+    init {
+        migrateOutdatedVectorsIfNeeded()
+    }
+
+    /**
+     * Graceful Schema / Dimension Migration:
+     * Inspects stored product entities for dimension mismatches (e.g., migrating from
+     * legacy 1280-dim MobileNet to 512-dim ViT).
+     *
+     * If an entity possesses an outdated vector dimension, this function attempts to re-embed
+     * the product using its existing image file on disk. If the image cannot be read, the
+     * stale vector is cleared to prevent HNSW index crashes.
+     */
+    private fun migrateOutdatedVectorsIfNeeded() {
+        try {
+            val all = productBox.all
+            val targetDim = pipeline.embeddingDimension
+            val toUpdate = mutableListOf<ProductEntity>()
+
+            for (entity in all) {
+                val vec = entity.imageVector
+                if (vec != null && vec.size != targetDim) {
+                    Log.w(
+                        TAG,
+                        "Found entity SKU=${entity.sku} with legacy vector dim=${vec.size} (expected $targetDim). Migrating..."
+                    )
+                    val imgFile = File(imagesDir, entity.imageFile)
+                    if (imgFile.exists()) {
+                        val bitmap = BitmapFactory.decodeFile(imgFile.absolutePath)
+                        if (bitmap != null) {
+                            val newVector = pipeline.extractEmbedding(bitmap)
+                            entity.imageVector = newVector
+                            toUpdate.add(entity)
+                            bitmap.recycle()
+                        } else {
+                            entity.imageVector = null
+                            toUpdate.add(entity)
+                        }
+                    } else {
+                        entity.imageVector = null
+                        toUpdate.add(entity)
+                    }
+                }
+            }
+
+            if (toUpdate.isNotEmpty()) {
+                productBox.put(toUpdate)
+                Log.i(TAG, "Successfully migrated ${toUpdate.size} product vectors to $targetDim-dim.")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking/migrating product vector dimensions: ${e.message}", e)
+        }
+    }
 
     fun findProductBySku(sku: String): ProductItem? {
         val trimmed = sku.trim().uppercase()
@@ -63,9 +124,9 @@ class ProductRepository(
             }
         }
 
-        // Tek hat: vektör ve saklanan fotoğraf aynı (≤512px) görüntüden gelir
+        // Downscale image to max standard resolution while preserving full aspect ratio
         val prepared = ImagePreprocessor.resize(bitmap)
-        val vector = vectorEngine.extractVector(prepared)
+        val vector = pipeline.extractEmbedding(prepared)
             ?: return SaveProductResult.Failure("Görsel işlenemedi")
 
         val fileName = "${UUID.randomUUID()}.jpg"
@@ -79,7 +140,7 @@ class ProductRepository(
             )
             calibrateThreshold()
         } catch (e: Exception) {
-            file.delete() // DB kaydı yoksa yetim dosya bırakma
+            file.delete()
             throw e
         }
         return SaveProductResult.Success(newCount = currentCount + 1)
@@ -100,7 +161,7 @@ class ProductRepository(
         try {
             for (bitmap in toSave) {
                 val prepared = ImagePreprocessor.resize(bitmap)
-                val vector = vectorEngine.extractVector(prepared)
+                val vector = pipeline.extractEmbedding(prepared)
                     ?: throw IllegalStateException("Vektör çıkarılamadı")
 
                 val fileName = "${UUID.randomUUID()}.jpg"
@@ -121,42 +182,82 @@ class ProductRepository(
         }
     }
 
+    /**
+     * Executes visual search using the Two-Stage Pipeline and Max-Score Matching.
+     *
+     * Matching Flow:
+     * 1. Extracts L2-normalized ViT embedding from the input image.
+     * 2. Retrieves nearest neighbor candidate entities from ObjectBox HNSW index.
+     * 3. Groups candidates by SKU (where each SKU has up to 3 stored angles).
+     * 4. Evaluates [IVisualSearchPipeline.maxScoreMatch] across all stored angles of that SKU.
+     * 5. The angle exhibiting the maximum score is chosen as the representative match.
+     * 6. Filters by [minSimilarity] and orders results descending by match confidence.
+     */
     fun searchProduct(
         bitmap: Bitmap,
         maxResults: Int = DEFAULT_MAX_RESULTS,
         minSimilarity: Float = DEFAULT_MIN_SIMILARITY
     ): List<SearchResult> {
-        val queryVector = vectorEngine.extractVector(bitmap) ?: return emptyList()
+        val queryVector = pipeline.extractEmbedding(bitmap) ?: return emptyList()
 
-        // Aynı SKU'nun birden fazla fotoğrafı olabilir; tekilleştirme için fazla aday çek
-        val query = productBox
-            .query(ProductEntity_.imageVector.nearestNeighbors(queryVector, maxResults * 4))
-            .build()
-
-        val candidates = query.use { it.findWithScores() }
-            .map {
-                val entity = it.get()
-                SearchResult(
-                    sku = entity.sku,
-                    similarity = 1f - it.score.toFloat(),
-                    imagePath = File(imagesDir, entity.imageFile).absolutePath,
-                    creationDate = entity.creationDate
-                )
-            }
-
-        if (candidates.isNotEmpty()) {
-            val preview = candidates.take(5).joinToString(", ") { "${it.sku}: ${"%.3f".format(it.similarity)}" }
-            Log.d("ProductMatching", "Arama adayları (ilk 5): [$preview] | Eşik: $minSimilarity")
-        } else {
-            Log.d("ProductMatching", "Arama adayları: Veritabanında eşleşen komşu bulunamadı")
+        if (queryVector.size != pipeline.embeddingDimension) {
+            Log.e(
+                TAG,
+                "Query vector dimension (${queryVector.size}) does not match pipeline (${pipeline.embeddingDimension})"
+            )
+            return emptyList()
         }
 
-        return candidates
-            .filter { it.similarity >= minSimilarity }
-            // Sonuçlar benzerliğe göre sıralı gelir; aynı SKU'dan ilk (en iyi eşleşen) fotoğraf kalır,
-            // yani kartta gösterilen fotoğraf, sorguya en çok benzeyen kayıtlı fotoğraftır
-            .distinctBy { it.sku }
-            .take(maxResults)
+        // Pull sufficient neighbor candidates to cover multiple angles per SKU
+        val candidateCount = (maxResults * MAX_ANGLES_PER_SKU * 3).coerceAtLeast(10)
+        val candidateEntities = try {
+            productBox.query(ProductEntity_.imageVector.nearestNeighbors(queryVector, candidateCount))
+                .build()
+                .use { it.find() }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error executing HNSW nearest neighbors search: ${e.message}", e)
+            emptyList()
+        }
+
+        // Group entities by SKU to compare across all registered angles
+        val groupedBySku = candidateEntities.groupBy { it.sku.trim().uppercase() }
+        val evaluatedResults = mutableListOf<SearchResult>()
+
+        for ((sku, angleEntities) in groupedBySku) {
+            val validVectors = angleEntities.mapNotNull { it.imageVector }
+            if (validVectors.isEmpty()) continue
+
+            // Compute Max-Score across all registered angles for this SKU
+            val maxScore = pipeline.maxScoreMatch(queryVector, validVectors)
+
+            if (maxScore >= minSimilarity) {
+                // Pick the specific entity that yielded the highest score
+                val bestEntity = angleEntities.maxByOrNull { entity ->
+                    entity.imageVector?.let { pipeline.calculateCosineSimilarity(queryVector, it) } ?: -1f
+                } ?: angleEntities.first()
+
+                evaluatedResults.add(
+                    SearchResult(
+                        sku = sku,
+                        similarity = maxScore,
+                        imagePath = File(imagesDir, bestEntity.imageFile).absolutePath,
+                        creationDate = bestEntity.creationDate
+                    )
+                )
+            }
+        }
+
+        // Sort descending by maximum angle match score
+        evaluatedResults.sortByDescending { it.similarity }
+
+        if (evaluatedResults.isNotEmpty()) {
+            val preview = evaluatedResults.take(5).joinToString(", ") { "${it.sku}: ${"%.3f".format(it.similarity)}" }
+            Log.d(TAG, "Search candidates (Top 5): [$preview] | Threshold: $minSimilarity")
+        } else {
+            Log.d(TAG, "No matching candidates found meeting threshold: $minSimilarity")
+        }
+
+        return evaluatedResults.take(maxResults)
     }
 
     data class CalibrationSummary(
@@ -168,10 +269,9 @@ class ProductRepository(
     )
 
     /**
-     * Veritabanındaki ürün vektörlerini inceleyerek ampirik eşik analizi yapar:
-     * - Aynı SKU'ya ait farklı açıların kosinüs benzerliği (intra-class)
-     * - Farklı SKU'lar arasındaki kosinüs benzerliği (inter-class)
-     * İki dağılımın arasına denk gelen eşiği hesaplayarak loglar ve döndürür (tahmin yerine veri temelli).
+     * Performs empirical threshold analysis using the active pipeline's similarity function:
+     * - Intra-class cosine similarity (same SKU, different angles)
+     * - Inter-class cosine similarity (distinct SKUs)
      */
     fun calibrateThreshold(): CalibrationSummary? {
         val allEntities = productBox.all
@@ -179,14 +279,19 @@ class ProductRepository(
 
         val sameSkuScores = mutableListOf<Float>()
         val diffSkuScores = mutableListOf<Float>()
+        val targetDim = pipeline.embeddingDimension
 
         for (i in 0 until allEntities.size) {
             val e1 = allEntities[i]
             val v1 = e1.imageVector ?: continue
+            if (v1.size != targetDim) continue
+
             for (j in i + 1 until allEntities.size) {
                 val e2 = allEntities[j]
                 val v2 = e2.imageVector ?: continue
-                val sim = cosineSimilarity(v1, v2)
+                if (v2.size != targetDim) continue
+
+                val sim = pipeline.calculateCosineSimilarity(v1, v2)
                 if (e1.sku.equals(e2.sku, ignoreCase = true)) {
                     sameSkuScores.add(sim)
                 } else {
@@ -196,7 +301,7 @@ class ProductRepository(
         }
 
         if (sameSkuScores.isEmpty()) {
-            Log.d("ProductMatching", "Kalibrasyon için aynı SKU'ya ait birden fazla açı henüz kaydedilmedi.")
+            Log.d(TAG, "Calibration requires multiple angles for at least one SKU.")
             return null
         }
 
@@ -220,14 +325,13 @@ class ProductRepository(
         )
 
         Log.i(
-            "ProductMatching",
-            "Kalibrasyon Raporu: Aynı SKU [min=%.3f, ort=%.3f] | Farklı SKU [max=%.3f, ort=%.3f] -> Önerilen Eşik: %.3f"
+            TAG,
+            "Calibration Report: Same SKU [min=%.3f, mean=%.3f] | Diff SKU [max=%.3f, mean=%.3f] -> Recommended Threshold: %.3f"
                 .format(sameMin, sameMean, diffMax, diffMean, recommended)
         )
         return summary
     }
 
-    // Galeri (Photo Picker) kaynağı: decode + EXIF + 512px küçültme burada yapılır, IO thread'inde çağır
     fun saveProduct(sku: String, uri: Uri): SaveProductResult {
         val trimmed = sku.trim().uppercase()
         val bitmap = ImagePreprocessor.fromUri(contentResolver, uri)
@@ -288,10 +392,15 @@ class ProductRepository(
     }
 
     companion object {
+        private const val TAG = "ProductRepository"
         const val MAX_ANGLES_PER_SKU = 3
         const val DEFAULT_MAX_RESULTS = 5
         const val DEFAULT_MIN_SIMILARITY = 0.55f
 
+        /**
+         * Static utility forwarding cosine similarity to guarantee backward compatibility
+         * with existing unit tests.
+         */
         fun cosineSimilarity(v1: FloatArray, v2: FloatArray): Float {
             var dot = 0f
             var norm1 = 0f
@@ -303,7 +412,7 @@ class ProductRepository(
                 norm2 += v2[i] * v2[i]
             }
             val denom = kotlin.math.sqrt(norm1) * kotlin.math.sqrt(norm2)
-            return if (denom > 0f) dot / denom else 0f
+            return if (denom > 0f) (dot / denom).coerceIn(-1.0f, 1.0f) else 0f
         }
     }
 }
