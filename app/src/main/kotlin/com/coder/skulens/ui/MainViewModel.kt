@@ -4,9 +4,12 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.coder.skulens.data.ProductItem
 import com.coder.skulens.data.ProductRepository
+import com.coder.skulens.data.SaveProductResult
 import com.coder.skulens.data.SearchResult
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,8 +37,13 @@ class MainViewModel(
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message
 
+    private val _duplicateProduct = MutableStateFlow<ProductItem?>(null)
+    val duplicateProduct: StateFlow<ProductItem?> = _duplicateProduct
+
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving
+
+    private var checkSkuJob: Job? = null
 
     fun selectTab(tab: Int) {
         _selectedTab.value = tab
@@ -43,23 +51,36 @@ class MainViewModel(
 
     fun onSkuInputChange(value: String) {
         _skuInput.value = value
+        if (_duplicateProduct.value != null) {
+            _duplicateProduct.value = null
+        }
     }
 
     fun clearSkuInput() {
         _skuInput.value = ""
+        _duplicateProduct.value = null
     }
 
     fun confirmSku(): Boolean {
         val trimmed = _skuInput.value.trim()
-        if (trimmed.isNotBlank()) {
-            _confirmedSku.value = trimmed
-            return true
+        if (trimmed.isBlank()) return false
+
+        _duplicateProduct.value = null
+        checkSkuJob?.cancel()
+        checkSkuJob = viewModelScope.launch(Dispatchers.IO) {
+            val existing = repository.findProductBySku(trimmed)
+            if (existing != null) {
+                _duplicateProduct.value = existing
+            } else {
+                _confirmedSku.value = trimmed
+            }
         }
-        return false
+        return true
     }
 
     fun editSku() {
         _confirmedSku.value = ""
+        _duplicateProduct.value = null
     }
 
     fun startNewSearch() {
@@ -106,34 +127,60 @@ class MainViewModel(
         }
     }
 
-    fun resetAddState() {
-        _skuInput.value = ""
+    fun dismissDuplicateProduct() {
+        _duplicateProduct.value = null
         _confirmedSku.value = ""
     }
 
-    private fun runSave(sku: String, block: () -> Boolean) {
+    fun resetAddState() {
+        _skuInput.value = ""
+        _confirmedSku.value = ""
+        _duplicateProduct.value = null
+    }
+
+    private fun runSave(sku: String, block: () -> SaveProductResult) {
         viewModelScope.launch(Dispatchers.IO) {
             _isSaving.value = true
             val startTime = System.currentTimeMillis()
             var savedSuccessfully = false
-            val result = try {
-                if (block()) {
-                    savedSuccessfully = true
-                    "Kaydedildi: $sku"
-                } else "Görsel işlenemedi"
+            var duplicateProduct: ProductItem? = null
+            var feedbackMessage: String? = null
+
+            try {
+                when (val result = block()) {
+                    is SaveProductResult.Success -> {
+                        savedSuccessfully = true
+                        feedbackMessage = "Kaydedildi: $sku"
+                    }
+                    is SaveProductResult.AlreadyExists -> {
+                        duplicateProduct = result.existingProduct
+                    }
+                    is SaveProductResult.Failure -> {
+                        feedbackMessage = result.message ?: "Görsel işlenemedi"
+                    }
+                }
             } catch (e: Exception) {
-                "Hata: ${e.message}"
+                feedbackMessage = "Hata: ${e.message}"
             }
+
             val elapsed = System.currentTimeMillis() - startTime
             val remaining = MIN_LOADING_DURATION_MS - elapsed
             if (remaining > 0) {
                 delay(remaining)
             }
+
             if (savedSuccessfully) {
                 _skuInput.value = ""
                 _confirmedSku.value = ""
+                _duplicateProduct.value = null
+                _message.value = feedbackMessage
+            } else if (duplicateProduct != null) {
+                _confirmedSku.value = ""
+                _message.value = null
+                _duplicateProduct.value = duplicateProduct
+            } else {
+                _message.value = feedbackMessage
             }
-            _message.value = result
             _isSaving.value = false
         }
     }

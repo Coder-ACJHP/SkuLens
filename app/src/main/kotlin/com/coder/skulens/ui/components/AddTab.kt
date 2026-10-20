@@ -28,6 +28,7 @@ fun AddTab(viewModel: MainViewModel) {
     val skuInput by viewModel.skuInput.collectAsState()
     val confirmedSku by viewModel.confirmedSku.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
+    val duplicateProduct by viewModel.duplicateProduct.collectAsState()
     val isConfirmed = confirmedSku.isNotBlank()
 
     val galleryPicker = rememberLauncherForActivityResult(
@@ -95,5 +96,18 @@ fun AddTab(viewModel: MainViewModel) {
             isSuccess = message?.let(viewModel::isSuccessMessage) ?: false,
             onDismiss = viewModel::clearMessage
         )
+
+        duplicateProduct?.let { product ->
+            ProductDetailsDialog(
+                title = "SKU Zaten Kayıtlı",
+                sku = product.sku,
+                imagePath = product.imagePath,
+                creationDate = product.creationDate,
+                noticeMessage = "Bu SKU zaten kayıtlı",
+                primaryButtonText = "Kapat",
+                onPrimaryClick = viewModel::dismissDuplicateProduct,
+                onDismiss = viewModel::dismissDuplicateProduct
+            )
+        }
     }
 }

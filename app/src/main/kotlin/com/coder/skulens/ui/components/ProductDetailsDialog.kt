@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.Verified
@@ -89,6 +90,7 @@ fun ProductDetailsDialog(
     imagePath: String,
     creationDate: Long = 0L,
     similarity: Float? = null,
+    noticeMessage: String? = null,
     itemIndex: Int? = null,
     itemTotalCount: Int? = null,
     onPreviousItem: (() -> Unit)? = null,
@@ -148,6 +150,31 @@ fun ProductDetailsDialog(
                     fontWeight = FontWeight.Bold,
                     color = OnSurface
                 )
+
+                if (noticeMessage != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(SurfaceContainerHigh)
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = Secondary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = noticeMessage,
+                            fontSize = 12.sp,
+                            color = OnSurfaceVariant,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
 
                 Spacer(Modifier.height(16.dp))
 
