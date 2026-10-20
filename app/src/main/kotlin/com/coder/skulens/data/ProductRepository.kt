@@ -196,7 +196,7 @@ class ProductRepository(
     fun searchProduct(
         bitmap: Bitmap,
         maxResults: Int = DEFAULT_MAX_RESULTS,
-        minSimilarity: Float = DEFAULT_MIN_SIMILARITY
+        minSimilarity: Float = activeMinSimilarity
     ): List<SearchResult> {
         val queryVector = pipeline.extractEmbedding(bitmap) ?: return emptyList()
 
@@ -236,12 +236,22 @@ class ProductRepository(
                     entity.imageVector?.let { pipeline.calculateCosineSimilarity(queryVector, it) } ?: -1f
                 } ?: angleEntities.first()
 
+                val allEntitiesForSku = productBox.query(ProductEntity_.sku.equal(sku, StringOrder.CASE_INSENSITIVE))
+                    .build()
+                    .use { it.find() }
+
+                val bestImagePath = File(imagesDir, bestEntity.imageFile).absolutePath
+                val allImagePaths = listOf(bestImagePath) + allEntitiesForSku
+                    .filter { it.id != bestEntity.id }
+                    .map { File(imagesDir, it.imageFile).absolutePath }
+
                 evaluatedResults.add(
                     SearchResult(
                         sku = sku,
                         similarity = maxScore,
-                        imagePath = File(imagesDir, bestEntity.imageFile).absolutePath,
-                        creationDate = bestEntity.creationDate
+                        imagePath = bestImagePath,
+                        creationDate = bestEntity.creationDate,
+                        allImagePaths = allImagePaths
                     )
                 )
             }
@@ -395,7 +405,10 @@ class ProductRepository(
         private const val TAG = "ProductRepository"
         const val MAX_ANGLES_PER_SKU = 3
         const val DEFAULT_MAX_RESULTS = 5
-        const val DEFAULT_MIN_SIMILARITY = 0.55f
+        const val DEFAULT_MIN_SIMILARITY = 0.75f
+
+        @Volatile
+        var activeMinSimilarity: Float = DEFAULT_MIN_SIMILARITY
 
         /**
          * Static utility forwarding cosine similarity to guarantee backward compatibility

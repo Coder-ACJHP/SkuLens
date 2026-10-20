@@ -43,7 +43,22 @@ class ProductRulesTest {
 
     @Test
     fun testDefaultMinSimilarity() {
-        assertEquals(0.55f, ProductRepository.DEFAULT_MIN_SIMILARITY, 0.001f)
+        assertEquals(0.75f, ProductRepository.DEFAULT_MIN_SIMILARITY, 0.001f)
+        assertEquals(0.75f, com.coder.skulens.data.AppPreferences.DEFAULT_SEARCH_SIMILARITY, 0.001f)
+    }
+
+    @Test
+    fun testSearchResultMultiAngleProperties() {
+        val result = com.coder.skulens.data.SearchResult(
+            sku = "SKU-SHORTS",
+            similarity = 0.91f,
+            imagePath = "/path/angle1.jpg",
+            creationDate = 1000L,
+            allImagePaths = listOf("/path/angle1.jpg", "/path/angle2.jpg", "/path/angle3.jpg")
+        )
+        assertEquals("SKU-SHORTS", result.sku)
+        assertEquals(3, result.allImagePaths.size)
+        assertEquals("/path/angle1.jpg", result.imagePath)
     }
 
     @Test

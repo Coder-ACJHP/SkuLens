@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.PhotoSizeSelectLarge
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SdCard
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -44,11 +45,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -92,6 +96,9 @@ fun SettingsScreen(
     val scrollState = rememberScrollState()
 
     var selectedSize by remember { mutableIntStateOf(AppPreferences.getPhotoResizeSize(context)) }
+    var similarityPercent by remember {
+        mutableFloatStateOf((AppPreferences.getSearchSimilarity(context) * 100).coerceIn(50f, 95f))
+    }
     var storageVolumes by remember { mutableStateOf(emptyList<StorageVolumeInfo>()) }
     var targetVolumeToMigrate by remember { mutableStateOf<StorageVolumeInfo?>(null) }
     var isMigrating by remember { mutableStateOf(false) }
@@ -196,6 +203,83 @@ fun SettingsScreen(
                         }
                     }
                 }
+            }
+
+            // Section: Visual Search Sensitivity Slider
+            SettingsCard(
+                title = "Arama Eşleşme Hassasiyeti",
+                icon = Icons.Default.Tune
+            ) {
+                Text(
+                    text = "Fotoğraflı aramada eşleşme kabul edilecek minimum benzerlik yüzdesi.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Minimum Eşleşme Eşiği",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(PrimaryContainer)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "%${similarityPercent.toInt()}",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = OnPrimary
+                        )
+                    }
+                }
+
+                Slider(
+                    value = similarityPercent,
+                    onValueChange = { similarityPercent = it },
+                    onValueChangeFinished = {
+                        val roundedRatio = kotlin.math.round(similarityPercent) / 100f
+                        AppPreferences.setSearchSimilarity(context, roundedRatio)
+                    },
+                    valueRange = 50f..95f,
+                    steps = 8,
+                    colors = SliderDefaults.colors(
+                        thumbColor = Primary,
+                        activeTrackColor = Primary,
+                        inactiveTrackColor = SurfaceContainerHigh
+                    )
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("%50 (Gevşek)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Önerilen: %75", style = MaterialTheme.typography.labelSmall, color = Primary, fontWeight = FontWeight.Bold)
+                    Text("%95 (Katı)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
+                Spacer(Modifier.height(6.dp))
+
+                Text(
+                    text = when {
+                        similarityPercent >= 85f -> "Çok Katı: Sadece neredeyse birebir aynı fotoğrafları eşleştirir. Yabancı nesneleri tamamen eler."
+                        similarityPercent >= 75f -> "Dengeli (Önerilen): Farklı açılardan çekilen ürünü tanır, yabancı nesneleri eşleştirmez."
+                        else -> "Esnek: Farklı ışık veya kısmi görüntülerde eşleşme şansını artırır ancak alakasız nesneler karışabilir."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             // Section 2: Storage & Database Path

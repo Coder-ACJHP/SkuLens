@@ -47,7 +47,7 @@ class CatalogViewModel(
     }
 
     fun onSearchQueryChange(query: String) {
-        _searchQuery.value = query
+        _searchQuery.value = query.uppercase()
     }
 
     fun selectProduct(product: ProductItem?) {

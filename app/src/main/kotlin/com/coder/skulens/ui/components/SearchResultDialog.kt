@@ -56,22 +56,23 @@ fun SearchResultDialog(
     onDismiss: () -> Unit,
     onNewSearch: () -> Unit
 ) {
-    if (results.isEmpty()) return
+    val bestMatch = results.firstOrNull() ?: return
 
-    var currentIndex by remember(results) { mutableIntStateOf(0) }
-    val item = results.getOrElse(currentIndex) { results.first() }
+    var activeAngleIndex by remember(bestMatch.sku) { mutableIntStateOf(0) }
+    val currentPhotoPath = bestMatch.allImagePaths.getOrElse(activeAngleIndex) { bestMatch.imagePath }
+    val totalAngles = bestMatch.allImagePaths.size
 
     ProductDetailsDialog(
         title = "Eşleşen Ürün",
-        sku = item.sku,
-        imagePath = item.imagePath,
-        creationDate = item.creationDate,
-        similarity = item.similarity,
-        itemIndex = if (results.size > 1) currentIndex else null,
-        itemTotalCount = if (results.size > 1) results.size else null,
-        itemPagerLabel = "Eşleşme",
-        onPreviousItem = { if (currentIndex > 0) currentIndex-- },
-        onNextItem = { if (currentIndex < results.size - 1) currentIndex++ },
+        sku = bestMatch.sku,
+        imagePath = currentPhotoPath,
+        creationDate = bestMatch.creationDate,
+        similarity = bestMatch.similarity,
+        itemIndex = if (totalAngles > 1) activeAngleIndex else null,
+        itemTotalCount = if (totalAngles > 1) totalAngles else null,
+        itemPagerLabel = "Açı",
+        onPreviousItem = { if (activeAngleIndex > 0) activeAngleIndex-- },
+        onNextItem = { if (activeAngleIndex < totalAngles - 1) activeAngleIndex++ },
         primaryButtonText = "Yeni Arama",
         onPrimaryClick = onNewSearch,
         secondaryButtonText = "Kapat",

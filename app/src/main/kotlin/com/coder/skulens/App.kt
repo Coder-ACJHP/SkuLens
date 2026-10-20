@@ -24,8 +24,9 @@ class App : Application() {
     }
 
     fun initStorageAndEngine() {
-        // Update photo resize target size from user preferences
+        // Update photo resize target size and visual search threshold from user preferences
         ImagePreprocessor.activeMaxSide = AppPreferences.getPhotoResizeSize(this)
+        ProductRepository.activeMinSimilarity = AppPreferences.getSearchSimilarity(this)
 
         val customPath = AppPreferences.getCustomStoragePath(this)
         val builder = MyObjectBox.builder().androidContext(this)

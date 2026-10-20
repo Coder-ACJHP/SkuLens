@@ -53,7 +53,7 @@ class MainViewModel(
     }
 
     fun onSkuInputChange(value: String) {
-        _skuInput.value = value
+        _skuInput.value = value.uppercase()
         if (_duplicateProduct.value != null) {
             _duplicateProduct.value = null
         }

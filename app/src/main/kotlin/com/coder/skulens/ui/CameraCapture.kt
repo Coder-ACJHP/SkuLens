@@ -3,6 +3,7 @@ package com.coder.skulens.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.media.MediaActionSound
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -93,6 +94,17 @@ fun CameraCapture(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val haptic = LocalHapticFeedback.current
+
+    val sound = remember {
+        MediaActionSound().apply {
+            load(MediaActionSound.SHUTTER_CLICK)
+        }
+    }
+    DisposableEffect(sound) {
+        onDispose {
+            sound.release()
+        }
+    }
 
     var isFlashing by remember { mutableStateOf(false) }
     var isCapturing by remember { mutableStateOf(false) }
@@ -324,6 +336,7 @@ fun CameraCapture(
             isCapturing = true
             isFlashing = true
             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            sound.play(MediaActionSound.SHUTTER_CLICK)
 
             imageCapture.takePicture(
                 captureExecutor,

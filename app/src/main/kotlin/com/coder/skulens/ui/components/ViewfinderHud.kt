@@ -36,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -82,21 +83,6 @@ fun ViewfinderHud(
     )
 
     Box(modifier = modifier.fillMaxSize()) {
-        // Subtle Vignette Scrim
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            InverseSurface.copy(alpha = 0.75f),
-                            Color.Transparent,
-                            InverseSurface.copy(alpha = 0.85f)
-                        )
-                    )
-                )
-        )
-
         // Top Telemetry Header
         Row(
             modifier = Modifier
@@ -108,6 +94,7 @@ fun ViewfinderHud(
             // Offline Vector Telemetry Chip
             Row(
                 modifier = Modifier
+                    .shadow(elevation = 3.dp, shape = CircleShape)
                     .clip(CircleShape)
                     .background(InverseSurface.copy(alpha = 0.85f))
                     .padding(horizontal = 10.dp, vertical = 6.dp),
@@ -132,6 +119,7 @@ fun ViewfinderHud(
             IconButton(
                 onClick = onToggleTorch,
                 modifier = Modifier
+                    .shadow(elevation = 3.dp, shape = CircleShape)
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(
@@ -215,6 +203,7 @@ fun ViewfinderHud(
         ) {
             Row(
                 modifier = Modifier
+                    .shadow(elevation = 3.dp, shape = CircleShape)
                     .clip(CircleShape)
                     .background(InverseSurface.copy(alpha = 0.90f))
                     .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -237,6 +226,7 @@ fun ViewfinderHud(
             if (showOfflineModelBadge) {
                 Row(
                     modifier = Modifier
+                        .shadow(elevation = 3.dp, shape = CircleShape)
                         .clip(CircleShape)
                         .background(PrimaryContainer.copy(alpha = 0.85f))
                         .padding(horizontal = 10.dp, vertical = 4.dp),
