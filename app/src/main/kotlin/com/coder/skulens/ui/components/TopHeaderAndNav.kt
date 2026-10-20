@@ -23,7 +23,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,7 +49,8 @@ import com.coder.skulens.ui.theme.SurfaceContainerHigh
 @Composable
 fun TopHeaderAndNav(
     selectedTab: Int,
-    onTabSelected: (Int) -> Unit
+    onTabSelected: (Int) -> Unit,
+    onOpenSettings: () -> Unit = {}
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseAlpha by infiniteTransition.animateFloat(
@@ -67,12 +70,13 @@ fun TopHeaderAndNav(
             .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 6.dp)
     ) {
-        // Top Brand & Offline Telemetry Row (Removed tab label as requested)
+        // Top Brand & Offline Telemetry Row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -106,6 +110,18 @@ fun TopHeaderAndNav(
                         fontWeight = FontWeight.Medium
                     )
                 }
+            }
+
+            IconButton(
+                onClick = onOpenSettings,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Ayarlar",
+                    tint = Primary,
+                    modifier = Modifier.size(22.dp)
+                )
             }
         }
 

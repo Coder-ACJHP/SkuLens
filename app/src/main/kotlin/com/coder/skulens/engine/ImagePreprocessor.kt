@@ -12,6 +12,9 @@ import androidx.core.graphics.scale
 
 object ImagePreprocessor {
 
+    const val DEFAULT_MAX_SIDE = 512
+    var activeMaxSide: Int = DEFAULT_MAX_SIDE
+
     const val MAX_SIDE = 512
 
     /**
@@ -27,7 +30,7 @@ object ImagePreprocessor {
     }
 
     /** Galeri/dosya kaynağı. IO thread'inde çağır. Decode edilemezse null döner. */
-    fun fromUri(resolver: ContentResolver, uri: Uri): Bitmap? {
+    fun fromUri(resolver: ContentResolver, uri: Uri, targetMaxSide: Int = activeMaxSide): Bitmap? {
         // 1) Sadece boyutları oku (bellek harcamaz)
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
@@ -35,7 +38,7 @@ object ImagePreprocessor {
 
         // 2) Hedefin en az 2 katı kalacak şekilde alt örnekleyerek decode et
         val options = BitmapFactory.Options().apply {
-            inSampleSize = sampleSizeFor(max(bounds.outWidth, bounds.outHeight))
+            inSampleSize = sampleSizeFor(max(bounds.outWidth, bounds.outHeight), targetMaxSide)
             inPreferredConfig = Bitmap.Config.ARGB_8888
         }
         val decoded = resolver.openInputStream(uri)?.use {
@@ -50,7 +53,7 @@ object ImagePreprocessor {
         val cropped = cropToSquare(oriented)
         if (cropped !== oriented) oriented.recycle()
 
-        val result = resize(cropped)
+        val result = resize(cropped, targetMaxSide)
         if (result !== cropped) cropped.recycle()
         return result
     }
@@ -59,7 +62,7 @@ object ImagePreprocessor {
      * Uzun kenar maxSide'dan büyükse en/boy oranını koruyarak küçültür,
      * değilse aynı nesneyi döner. Verilen src'yi recycle etmez.
      */
-    fun resize(src: Bitmap, maxSide: Int = MAX_SIDE): Bitmap {
+    fun resize(src: Bitmap, maxSide: Int = activeMaxSide): Bitmap {
         if (max(src.width, src.height) <= maxSide) return src
 
         var current = src
@@ -79,9 +82,9 @@ object ImagePreprocessor {
         return result
     }
 
-    private fun sampleSizeFor(longest: Int): Int {
+    private fun sampleSizeFor(longest: Int, targetSide: Int = activeMaxSide): Int {
         var sample = 1
-        while (longest / (sample * 2) >= MAX_SIDE * 2) sample *= 2
+        while (longest / (sample * 2) >= targetSide * 2) sample *= 2
         return sample
     }
 

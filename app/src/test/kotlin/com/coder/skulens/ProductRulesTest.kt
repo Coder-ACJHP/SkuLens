@@ -61,4 +61,18 @@ class ProductRulesTest {
         assertEquals(normalized1, normalized2)
         assertEquals(normalized2, normalized3)
     }
+
+    @Test
+    fun testPhotoSizePresetsContainDefaults() {
+        assertEquals(512, com.coder.skulens.data.AppPreferences.DEFAULT_PHOTO_SIZE)
+        assertTrue(com.coder.skulens.data.AppPreferences.PHOTO_SIZE_PRESETS.contains(512))
+        assertEquals(listOf(384, 512, 768, 1024), com.coder.skulens.data.AppPreferences.PHOTO_SIZE_PRESETS)
+    }
+
+    @Test
+    fun testStorageVolumeFormatBytes() {
+        assertEquals("0 MB", com.coder.skulens.data.StorageVolumeInfo.formatBytes(0L))
+        assertEquals("500 MB", com.coder.skulens.data.StorageVolumeInfo.formatBytes(500L * 1024 * 1024))
+        assertEquals("2.0 GB", com.coder.skulens.data.StorageVolumeInfo.formatBytes(2L * 1024 * 1024 * 1024))
+    }
 }
