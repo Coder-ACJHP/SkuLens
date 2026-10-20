@@ -8,10 +8,23 @@ import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
 import kotlin.math.max
 import kotlin.math.roundToInt
+import androidx.core.graphics.scale
 
 object ImagePreprocessor {
 
     const val MAX_SIDE = 512
+
+    /**
+     * Vizör (1:1) ile örtüşmesi ve modelin en-boy oranını bozmadan işlemesi için
+     * görseli merkezden kare olarak kırpar. Görsel zaten kare ise dokunulmaz.
+     */
+    fun cropToSquare(src: Bitmap): Bitmap {
+        if (src.width == src.height) return src
+        val size = kotlin.math.min(src.width, src.height)
+        val x = (src.width - size) / 2
+        val y = (src.height - size) / 2
+        return Bitmap.createBitmap(src, x, y, size, size)
+    }
 
     /** Galeri/dosya kaynağı. IO thread'inde çağır. Decode edilemezse null döner. */
     fun fromUri(resolver: ContentResolver, uri: Uri): Bitmap? {
@@ -29,13 +42,16 @@ object ImagePreprocessor {
             BitmapFactory.decodeStream(it, null, options)
         } ?: return null
 
-        // 3) EXIF yönünü uygula, sonra kaliteli küçült
+        // 3) EXIF yönünü uygula, kareye kırp, sonra kaliteli küçült
         val degrees = resolver.openInputStream(uri)?.use { exifDegrees(ExifInterface(it)) } ?: 0
         val oriented = decoded.rotate(degrees)
         if (oriented !== decoded) decoded.recycle()
 
-        val result = resize(oriented)
-        if (result !== oriented) oriented.recycle()
+        val cropped = cropToSquare(oriented)
+        if (cropped !== oriented) oriented.recycle()
+
+        val result = resize(cropped)
+        if (result !== cropped) cropped.recycle()
         return result
     }
 
@@ -49,12 +65,7 @@ object ImagePreprocessor {
         var current = src
         // Kademeli yarıya indirme: her adım en fazla 2x → aliasing yok
         while (max(current.width, current.height) / 2 >= maxSide) {
-            val next = Bitmap.createScaledBitmap(
-                current,
-                (current.width / 2).coerceAtLeast(1),
-                (current.height / 2).coerceAtLeast(1),
-                true // bilinear filtre
-            )
+            val next = current.scale((current.width / 2).coerceAtLeast(1), (current.height / 2).coerceAtLeast(1))
             if (current !== src) current.recycle()
             current = next
         }
@@ -63,7 +74,7 @@ object ImagePreprocessor {
         val ratio = maxSide.toFloat() / max(current.width, current.height)
         val w = (current.width * ratio).roundToInt().coerceAtLeast(1)
         val h = (current.height * ratio).roundToInt().coerceAtLeast(1)
-        val result = Bitmap.createScaledBitmap(current, w, h, true)
+        val result = current.scale(w, h)
         if (current !== src && current !== result) current.recycle()
         return result
     }

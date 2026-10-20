@@ -3,6 +3,7 @@ package com.coder.skulens.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
@@ -11,6 +12,7 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
+import androidx.camera.core.UseCaseGroup
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
@@ -34,6 +36,7 @@ import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -48,7 +51,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -87,12 +92,14 @@ fun CameraCapture(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val haptic = LocalHapticFeedback.current
 
     var isFlashing by remember { mutableStateOf(false) }
+    var isCapturing by remember { mutableStateOf(false) }
 
     LaunchedEffect(isFlashing) {
         if (isFlashing) {
-            kotlinx.coroutines.delay(120)
+            kotlinx.coroutines.delay(100)
             isFlashing = false
         }
     }
@@ -202,12 +209,26 @@ fun CameraCapture(
             }
             try {
                 provider.unbindAll()
-                camera = provider.bindToLifecycle(
-                    lifecycleOwner,
-                    CameraSelector.DEFAULT_BACK_CAMERA,
-                    preview,
-                    imageCapture
-                )
+                val viewPort = pv.viewPort
+                if (viewPort != null) {
+                    val useCaseGroup = UseCaseGroup.Builder()
+                        .addUseCase(preview)
+                        .addUseCase(imageCapture)
+                        .setViewPort(viewPort)
+                        .build()
+                    camera = provider.bindToLifecycle(
+                        lifecycleOwner,
+                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        useCaseGroup
+                    )
+                } else {
+                    camera = provider.bindToLifecycle(
+                        lifecycleOwner,
+                        CameraSelector.DEFAULT_BACK_CAMERA,
+                        preview,
+                        imageCapture
+                    )
+                }
             } catch (e: Exception) {
                 camera = null
             }
@@ -298,6 +319,51 @@ fun CameraCapture(
             )
         }
 
+        fun takePhoto() {
+            if (isCapturing || !isActive || camera == null) return
+            isCapturing = true
+            isFlashing = true
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+
+            imageCapture.takePicture(
+                captureExecutor,
+                object : ImageCapture.OnImageCapturedCallback() {
+                    override fun onCaptureSuccess(image: ImageProxy) {
+                        try {
+                            val raw = image.toBitmap()
+                            val oriented = raw.rotate(image.imageInfo.rotationDegrees)
+                            if (oriented !== raw) raw.recycle()
+
+                            val cropped = ImagePreprocessor.cropToSquare(oriented)
+                            if (cropped !== oriented) oriented.recycle()
+
+                            val resized = ImagePreprocessor.resize(cropped)
+                            if (resized !== cropped) cropped.recycle()
+
+                            ContextCompat.getMainExecutor(context).execute {
+                                isCapturing = false
+                                onCaptured(resized)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("CameraCapture", "Fotoğraf işleme hatası", e)
+                            ContextCompat.getMainExecutor(context).execute {
+                                isCapturing = false
+                            }
+                        } finally {
+                            image.close()
+                        }
+                    }
+
+                    override fun onError(exception: ImageCaptureException) {
+                        Log.e("CameraCapture", "Fotoğraf çekim hatası: ${exception.message}", exception)
+                        ContextCompat.getMainExecutor(context).execute {
+                            isCapturing = false
+                        }
+                    }
+                }
+            )
+        }
+
         // Capture Buttons Row
         Spacer(Modifier.height(4.dp))
         if (secondaryButtonText != null) {
@@ -306,29 +372,8 @@ fun CameraCapture(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Button(
-                    onClick = {
-                        imageCapture.takePicture(
-                            captureExecutor,
-                            object : ImageCapture.OnImageCapturedCallback() {
-                                override fun onCaptureSuccess(image: ImageProxy) {
-                                    val raw = image.toBitmap()
-                                    val oriented = raw.rotate(image.imageInfo.rotationDegrees)
-                                    if (oriented !== raw) raw.recycle()
-                                    image.close()
-
-                                    val resized = ImagePreprocessor.resize(oriented)
-                                    if (resized !== oriented) oriented.recycle()
-
-                                    ContextCompat.getMainExecutor(context).execute {
-                                        isFlashing = true
-                                        onCaptured(resized)
-                                    }
-                                }
-                                override fun onError(exception: ImageCaptureException) {}
-                            }
-                        )
-                    },
-                    enabled = isActive && camera != null,
+                    onClick = { takePhoto() },
+                    enabled = isActive && camera != null && !isCapturing,
                     modifier = Modifier
                         .weight(1f)
                         .height(56.dp),
@@ -339,14 +384,22 @@ fun CameraCapture(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.PhotoCamera,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        if (isCapturing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.PhotoCamera,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                         Text(
-                            text = captureLabel,
+                            text = if (isCapturing) "Çekiliyor..." else captureLabel,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1
@@ -377,29 +430,8 @@ fun CameraCapture(
             }
         } else {
             Button(
-                onClick = {
-                    imageCapture.takePicture(
-                        captureExecutor,
-                        object : ImageCapture.OnImageCapturedCallback() {
-                            override fun onCaptureSuccess(image: ImageProxy) {
-                                val raw = image.toBitmap()
-                                val oriented = raw.rotate(image.imageInfo.rotationDegrees)
-                                if (oriented !== raw) raw.recycle()
-                                image.close()
-
-                                val resized = ImagePreprocessor.resize(oriented)
-                                if (resized !== oriented) oriented.recycle()
-
-                                ContextCompat.getMainExecutor(context).execute {
-                                    isFlashing = true
-                                    onCaptured(resized)
-                                }
-                            }
-                            override fun onError(exception: ImageCaptureException) {}
-                        }
-                    )
-                },
-                enabled = isActive && camera != null,
+                onClick = { takePhoto() },
+                enabled = isActive && camera != null && !isCapturing,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -417,15 +449,23 @@ fun CameraCapture(
                             .background(MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.PhotoCamera,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        if (isCapturing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.PhotoCamera,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                     Text(
-                        text = captureLabel,
+                        text = if (isCapturing) "Çekiliyor..." else captureLabel,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp

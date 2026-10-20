@@ -68,7 +68,11 @@ fun AddTab(viewModel: MainViewModel) {
     val scrollState = rememberScrollState()
 
     LaunchedEffect(isConfirmed) {
-        if (!isConfirmed) {
+        if (isConfirmed) {
+            // SKU onaylandıktan sonra vizör ve deklanşör butonunun görünmesi için aşağı kaydır
+            kotlinx.coroutines.delay(100)
+            scrollState.animateScrollTo(scrollState.maxValue)
+        } else {
             scrollState.scrollTo(0)
         }
     }
@@ -105,7 +109,6 @@ fun AddTab(viewModel: MainViewModel) {
                         stagedCount < 3 -> "Farklı bir açı çekin ($nextAngle/3) veya Kaydet'e basın."
                         else -> "3 açı tamamlandı. Kaydet butonuna basın."
                     },
-                    showOfflineModelBadge = true,
                     secondaryButtonText = if (stagedCount == 0) "Kaydet" else "Kaydet ($stagedCount Açı)",
                     onSecondaryClick = viewModel::saveStagedProduct,
                     secondaryButtonEnabled = stagedCount > 0 && !isSaving,

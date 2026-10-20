@@ -27,7 +27,7 @@ SkuLens; mağaza, depo veya saha ortamında internet bağlantısına ihtiyaç du
 | **Dil** | Kotlin 2.0.21 | Modern ve güvenli sözdizimi |
 | **Kullanıcı Arayüzü** | Jetpack Compose + Material 3 | Modern deklaratif arayüz mimarisi |
 | **Kamera** | CameraX 1.4.0 (`camera-view`, `camera-lifecycle`) | Bellek içi yakalama ve arka plan iş parçacığında ön işleme |
-| **Görsel Vektörleme** | Google MediaPipe Tasks Vision (`0.10.14`) | `mobilenet_v3_small.tflite` (1024 boyutlu Float vektör) |
+| **Görsel Vektörleme** | Google MediaPipe Tasks Vision (`0.10.14`) | `mobilenet_v3_large.tflite` (1280 boyutlu Float vektör) |
 | **Vektör Veritabanı** | ObjectBox 4.0.3 (HNSW Index) | Yüksek hızlı yerel vektör arama, `COSINE` mesafesi |
 | **Asenkron Yapı** | Kotlin Coroutines & StateFlow | UI ve IO iş parçacıklarının katı ayrımı |
 | **Mimari** | MVVM + Clean Architecture | Domain, Data, Presentation, Engine ve Util katmanları |
@@ -42,7 +42,7 @@ SkuLens/
 │   ├── src/
 │   │   ├── main/
 │   │   │   ├── assets/
-│   │   │   │   └── mobilenet_v3_small.tflite       # 1024-dim MediaPipe embedding modeli
+│   │   │   │   └── mobilenet_v3_large.tflite       # 1280-dim MediaPipe embedding modeli
 │   │   │   ├── kotlin/com/coder/skulens/
 │   │   │   │   ├── App.kt                          # Application sınıfı & DI
 │   │   │   │   ├── engine/                         # Vektör ve ML model motoru

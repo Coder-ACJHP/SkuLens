@@ -12,11 +12,12 @@ class VectorEngine(context: Context) {
 
     init {
         val baseOptions = BaseOptions.builder()
-            .setModelAssetPath("mobilenet_v3_small.tflite")
+            .setModelAssetPath("mobilenet_v3_large.tflite")
             .build()
 
         val options = ImageEmbedder.ImageEmbedderOptions.builder()
             .setBaseOptions(baseOptions)
+            .setL2Normalize(true)
             .setQuantize(false)
             .build()
 
@@ -25,23 +26,29 @@ class VectorEngine(context: Context) {
 
     /** Vektör çıkarır; boyut modelle uyuşmazsa erken ve anlaşılır hata verir. */
     fun extractVector(bitmap: Bitmap): FloatArray? {
-        // Güvenlik ağı: kaynaklar zaten küçültülmüş gelir, ≤512px ise dokunulmaz (idempotent)
-        val scaled = ImagePreprocessor.resize(bitmap)
-        val mpImage = BitmapImageBuilder(scaled).build()
-        val vector = embedder.embed(mpImage)
-            .embeddingResult()
-            .embeddings()
-            .firstOrNull()
-            ?.floatEmbedding()
+        // Güvenlik ağı: 1:1 vizör karesine kırp ve ≤512px'e boyutlandır
+        val cropped = ImagePreprocessor.cropToSquare(bitmap)
+        val scaled = ImagePreprocessor.resize(cropped)
+        try {
+            val mpImage = BitmapImageBuilder(scaled).build()
+            val vector = embedder.embed(mpImage)
+                .embeddingResult()
+                .embeddings()
+                .firstOrNull()
+                ?.floatEmbedding()
 
-        check(vector == null || vector.size.toLong() == EMBEDDING_DIM) {
-            "Model ${vector?.size} boyutlu vektör üretti, EMBEDDING_DIM=$EMBEDDING_DIM. " +
-                "Model değişirse EMBEDDING_DIM değerini güncelle (ve uygulamayı kaldırıp yeniden kur)."
+            check(vector == null || vector.size.toLong() == EMBEDDING_DIM) {
+                "Model ${vector?.size} boyutlu vektör üretti, EMBEDDING_DIM=$EMBEDDING_DIM. " +
+                    "Model değişirse EMBEDDING_DIM değerini güncelle (ve uygulamayı kaldırıp yeniden kur)."
+            }
+            return vector
+        } finally {
+            if (cropped !== bitmap && cropped !== scaled) cropped.recycle()
+            if (scaled !== bitmap) scaled.recycle()
         }
-        return vector
     }
 
     companion object {
-        const val EMBEDDING_DIM = 1024L // mobilenet_v3_small; model değişirse güncelle
+        const val EMBEDDING_DIM = 1280L // mobilenet_v3_large (1280-dim); model değişirse güncelle
     }
 }

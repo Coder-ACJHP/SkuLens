@@ -65,7 +65,7 @@ class MainViewModel(
     }
 
     fun confirmSku(): Boolean {
-        val trimmed = _skuInput.value.trim()
+        val trimmed = _skuInput.value.trim().uppercase()
         if (trimmed.isBlank()) return false
 
         _duplicateProduct.value = null
@@ -117,7 +117,7 @@ class MainViewModel(
     }
 
     fun saveStagedProduct() {
-        val sku = _confirmedSku.value
+        val sku = _confirmedSku.value.trim().uppercase()
         val bitmaps = _stagedBitmaps.value
         if (sku.isBlank() || bitmaps.isEmpty()) return
 

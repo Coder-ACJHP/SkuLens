@@ -27,4 +27,38 @@ class ProductRulesTest {
         assertEquals(3, item.allImagePaths.size)
         assertEquals(listOf("/path/1.jpg", "/path/2.jpg", "/path/3.jpg"), item.allImagePaths)
     }
+
+    @Test
+    fun testEmbeddingDimensionConstant() {
+        assertEquals(1280L, com.coder.skulens.engine.VectorEngine.EMBEDDING_DIM)
+        assertEquals(1280L, com.coder.skulens.data.ProductEntity.EMBEDDING_DIM)
+    }
+
+    @Test
+    fun testDefaultMinSimilarity() {
+        assertEquals(0.55f, ProductRepository.DEFAULT_MIN_SIMILARITY, 0.001f)
+    }
+
+    @Test
+    fun testCosineSimilarityIdenticalAndOrthogonal() {
+        val v1 = floatArrayOf(1f, 0f, 0f)
+        val v2 = floatArrayOf(1f, 0f, 0f)
+        val v3 = floatArrayOf(0f, 1f, 0f)
+
+        assertEquals(1f, ProductRepository.cosineSimilarity(v1, v2), 0.0001f)
+        assertEquals(0f, ProductRepository.cosineSimilarity(v1, v3), 0.0001f)
+    }
+
+    @Test
+    fun testSkuCaseInsensitiveNormalization() {
+        val sku1 = "prd-0001"
+        val sku2 = " PRD-0001"
+        val sku3 = "PrD-0001 "
+        val normalized1 = sku1.trim().uppercase()
+        val normalized2 = sku2.trim().uppercase()
+        val normalized3 = sku3.trim().uppercase()
+        assertEquals("PRD-0001", normalized1)
+        assertEquals(normalized1, normalized2)
+        assertEquals(normalized2, normalized3)
+    }
 }
