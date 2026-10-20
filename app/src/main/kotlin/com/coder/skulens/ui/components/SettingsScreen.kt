@@ -673,10 +673,10 @@ private fun AboutCard() {
 
             Spacer(Modifier.height(4.dp))
 
-            // Version line: vX.X.X (build)b
+            // Version line: vX.X.X.Yb (parantezsiz)
             val versionName = BuildConfig.VERSION_NAME
             val versionCode = BuildConfig.VERSION_CODE
-            val formattedVersion = "Version: v$versionName($versionCode)b"
+            val formattedVersion = "Version: v$versionName.${versionCode}b"
 
             Box(
                 modifier = Modifier
