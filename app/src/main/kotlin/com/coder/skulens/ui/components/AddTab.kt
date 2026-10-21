@@ -4,6 +4,9 @@ import android.graphics.Bitmap
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -98,8 +101,25 @@ fun AddTab(viewModel: MainViewModel) {
             if (isConfirmed) {
                 val stagedCount = stagedBitmaps.size
                 val nextAngle = (stagedCount + 1).coerceAtMost(3)
+
+                val (targetPrimaryWeight, targetSecondaryWeight) = when {
+                    stagedCount == 0 -> 3f to 1f
+                    stagedCount < 3 -> 2f to 2f
+                    else -> 1f to 3f
+                }
+                val primaryWeight by animateFloatAsState(
+                    targetValue = targetPrimaryWeight,
+                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                    label = "primaryButtonWeight"
+                )
+                val secondaryWeight by animateFloatAsState(
+                    targetValue = targetSecondaryWeight,
+                    animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+                    label = "secondaryButtonWeight"
+                )
+
                 CameraCapture(
-                    captureLabel = if (stagedCount >= 3) "3/3 Doldu" else "Açı Çek ($nextAngle/3)",
+                    captureLabel = if (stagedCount >= 3) "3/3" else "Açı Çek ($nextAngle/3)",
                     onCaptured = viewModel::addStagedAngle,
                     isActive = !isSaving && stagedCount < 3 && message == null,
                     topBadgeText = "AÇI $stagedCount/3",
@@ -112,6 +132,8 @@ fun AddTab(viewModel: MainViewModel) {
                     secondaryButtonText = if (stagedCount == 0) "Kaydet" else "Kaydet ($stagedCount Açı)",
                     onSecondaryClick = viewModel::saveStagedProduct,
                     secondaryButtonEnabled = stagedCount > 0 && !isSaving,
+                    primaryButtonWeight = primaryWeight,
+                    secondaryButtonWeight = secondaryWeight,
                     onGalleryClick = if (stagedCount < 3 && !isSaving) {
                         { galleryPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
                     } else null,

@@ -21,6 +21,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -58,6 +59,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -89,6 +91,8 @@ fun CameraCapture(
     secondaryButtonText: String? = null,
     onSecondaryClick: (() -> Unit)? = null,
     secondaryButtonEnabled: Boolean = true,
+    primaryButtonWeight: Float = 1f,
+    secondaryButtonWeight: Float = 1f,
     onGalleryClick: (() -> Unit)? = null,
     slotsContent: (@Composable () -> Unit)? = null,
     bottomContent: (@Composable () -> Unit)? = null
@@ -378,14 +382,15 @@ fun CameraCapture(
                     onClick = { takePhoto() },
                     enabled = isActive && camera != null && !isCapturing,
                     modifier = Modifier
-                        .weight(1f)
+                        .weight(primaryButtonWeight)
                         .height(56.dp),
                     shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryContainer)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         if (isCapturing) {
                             CircularProgressIndicator(
@@ -405,7 +410,8 @@ fun CameraCapture(
                             text = if (isCapturing) "Çekiliyor..." else captureLabel,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            maxLines = 1
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -414,9 +420,10 @@ fun CameraCapture(
                     onClick = { onSecondaryClick?.invoke() },
                     enabled = secondaryButtonEnabled,
                     modifier = Modifier
-                        .weight(1f)
+                        .weight(secondaryButtonWeight)
                         .height(56.dp),
                     shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 8.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (secondaryButtonEnabled) Primary else SurfaceContainerHigh,
                         contentColor = if (secondaryButtonEnabled) OnPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
@@ -427,7 +434,8 @@ fun CameraCapture(
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center,
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
