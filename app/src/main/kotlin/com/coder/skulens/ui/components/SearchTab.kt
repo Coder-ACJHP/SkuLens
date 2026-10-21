@@ -58,6 +58,7 @@ fun SearchTab(viewModel: MainViewModel) {
 
             Spacer(Modifier.height(12.dp))
             OfflineAssuranceCard()
+            Spacer(Modifier.height(100.dp))
         }
 
         if (state is SearchState.Loading) {

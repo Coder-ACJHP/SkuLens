@@ -195,7 +195,7 @@ fun CatalogTab(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(bottom = 16.dp)
+                    contentPadding = PaddingValues(bottom = 110.dp)
                 ) {
                     items(filteredProducts, key = { it.id }) { item ->
                         ProductCatalogCard(

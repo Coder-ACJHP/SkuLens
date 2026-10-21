@@ -137,7 +137,7 @@ fun AddTab(viewModel: MainViewModel) {
                 LockedCameraSection()
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(110.dp))
         }
 
         if (isSaving) {

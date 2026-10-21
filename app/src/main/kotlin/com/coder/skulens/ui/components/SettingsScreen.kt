@@ -89,7 +89,7 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -117,29 +117,31 @@ fun SettingsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Surface)
-            .statusBarsPadding()
+            .then(if (onNavigateBack != null) Modifier.statusBarsPadding() else Modifier)
     ) {
-        // Top Bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onNavigateBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Geri",
-                    tint = Primary
+        if (onNavigateBack != null) {
+            // Top Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Geri",
+                        tint = Primary
+                    )
+                }
+                Text(
+                    text = "Ayarlar",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Primary,
+                    modifier = Modifier.padding(start = 4.dp)
                 )
             }
-            Text(
-                text = "Ayarlar",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = Primary,
-                modifier = Modifier.padding(start = 4.dp)
-            )
         }
 
         Column(
@@ -776,6 +778,8 @@ private fun AboutCard() {
                     color = Primary
                 )
             }
+
+            Spacer(Modifier.height(110.dp))
         }
     }
 }
