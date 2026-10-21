@@ -1,10 +1,11 @@
 package com.coder.skulens.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.media.MediaActionSound
-import android.util.Log
+import com.coder.skulens.util.AppLogger
+import com.coder.skulens.util.rememberShutterSoundPlayer
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.Camera
@@ -73,6 +74,7 @@ import com.coder.skulens.ui.theme.Secondary
 import com.coder.skulens.ui.theme.SurfaceContainer
 import com.coder.skulens.ui.theme.SurfaceContainerHigh
 import java.util.concurrent.Executors
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun CameraCapture(
@@ -81,7 +83,7 @@ fun CameraCapture(
     modifier: Modifier = Modifier,
     isActive: Boolean = true,
     topBadgeText: String = "HD VEKTÖR",
-    bottomHintText: String = "Barkod veya Ambalajı Hizalayın",
+    bottomHintText: String = "Barkod veya Ürünü Hizalayın",
     helperPrompt: String = "Ürünü net ve düz tutun",
     showOfflineModelBadge: Boolean = false,
     secondaryButtonText: String? = null,
@@ -95,23 +97,14 @@ fun CameraCapture(
     val lifecycleOwner = LocalLifecycleOwner.current
     val haptic = LocalHapticFeedback.current
 
-    val sound = remember {
-        MediaActionSound().apply {
-            load(MediaActionSound.SHUTTER_CLICK)
-        }
-    }
-    DisposableEffect(sound) {
-        onDispose {
-            sound.release()
-        }
-    }
+    val shutterSoundPlayer = rememberShutterSoundPlayer()
 
     var isFlashing by remember { mutableStateOf(false) }
     var isCapturing by remember { mutableStateOf(false) }
 
     LaunchedEffect(isFlashing) {
         if (isFlashing) {
-            kotlinx.coroutines.delay(100)
+            kotlinx.coroutines.delay(100.milliseconds)
             isFlashing = false
         }
     }
@@ -167,7 +160,7 @@ fun CameraCapture(
                 )
 
                 Text(
-                    text = "Ürün ve ambalajları çevrimdışı görsel olarak eşleştirebilmek için kamera erişimine ihtiyaç duyulmaktadır.",
+                    text = "Ürün ve barkodları çevrimdışı görsel olarak eşleştirebilmek için kamera erişimine ihtiyaç duyulmaktadır.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -336,7 +329,7 @@ fun CameraCapture(
             isCapturing = true
             isFlashing = true
             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            sound.play(MediaActionSound.SHUTTER_CLICK)
+            shutterSoundPlayer.play()
 
             imageCapture.takePicture(
                 captureExecutor,
@@ -355,7 +348,7 @@ fun CameraCapture(
                                 onCaptured(resized)
                             }
                         } catch (e: Exception) {
-                            Log.e("CameraCapture", "Fotoğraf işleme hatası", e)
+                            AppLogger.e("CameraCapture", "Fotoğraf işleme hatası", e)
                             ContextCompat.getMainExecutor(context).execute {
                                 isCapturing = false
                             }
@@ -365,7 +358,7 @@ fun CameraCapture(
                     }
 
                     override fun onError(exception: ImageCaptureException) {
-                        Log.e("CameraCapture", "Fotoğraf çekim hatası: ${exception.message}", exception)
+                        AppLogger.e("CameraCapture", "Fotoğraf çekim hatası: ${exception.message}", exception)
                         ContextCompat.getMainExecutor(context).execute {
                             isCapturing = false
                         }

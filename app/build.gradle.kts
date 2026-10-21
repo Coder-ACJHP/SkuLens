@@ -7,6 +7,8 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("io.objectbox")
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 val versionPropsFile = file("version.properties")
@@ -114,6 +116,12 @@ dependencies {
 
     // EXIF
     implementation("androidx.exifinterface:exifinterface:1.3.7")
+
+    // Crashlytics
+    // Import the Firebase BoM
+    implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
+    implementation("com.google.firebase:firebase-crashlytics")
+
 
     // Testing
     testImplementation("junit:junit:4.13.2")

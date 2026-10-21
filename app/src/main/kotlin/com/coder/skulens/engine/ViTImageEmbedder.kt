@@ -2,7 +2,7 @@ package com.coder.skulens.engine
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.util.Log
+import com.coder.skulens.util.AppLogger
 import org.tensorflow.lite.Interpreter
 import java.io.FileInputStream
 import java.nio.ByteBuffer
@@ -53,7 +53,7 @@ class ViTImageEmbedder(
                 // Dynamically inspect model tensor input layout
                 val inputTensor = tflite.getInputTensor(0)
                 val shape = inputTensor.shape() // e.g. [1, 3, 224, 224] for NCHW, or [1, 224, 224, 3] for NHWC
-                Log.i(
+                AppLogger.i(
                     TAG,
                     "Loaded ViT model '$modelAssetPath': Input shape=[${shape.joinToString()}], DataType=${inputTensor.dataType()}"
                 )
@@ -72,22 +72,22 @@ class ViTImageEmbedder(
 
                 val outputTensor = tflite.getOutputTensor(0)
                 val outShape = outputTensor.shape()
-                Log.i(TAG, "ViT Output shape=[${outShape.joinToString()}], DataType=${outputTensor.dataType()}")
+                AppLogger.i(TAG, "ViT Output shape=[${outShape.joinToString()}], DataType=${outputTensor.dataType()}")
 
                 interpreter = tflite
-                Log.i(TAG, "ViT embedder successfully initialized for '$modelAssetPath' (dim=$embeddingDimension)")
+                AppLogger.i(TAG, "ViT embedder successfully initialized for '$modelAssetPath' (dim=$embeddingDimension)")
             } else {
-                Log.w(TAG, "ViT model asset '$modelAssetPath' could not be loaded from assets.")
+                AppLogger.w(TAG, "ViT model asset '$modelAssetPath' could not be loaded from assets.")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize ViT Interpreter for '$modelAssetPath': ${e.message}", e)
+            AppLogger.e(TAG, "Failed to initialize ViT Interpreter for '$modelAssetPath': ${e.message}", e)
             interpreter = null
         }
     }
 
     override fun embed(croppedBitmap: Bitmap): FloatArray? {
         val tflite = interpreter ?: run {
-            Log.e(TAG, "Cannot embed image: ViT model '$modelAssetPath' interpreter is not loaded.")
+            AppLogger.e(TAG, "Cannot embed image: ViT model '$modelAssetPath' interpreter is not loaded.")
             return null
         }
 
@@ -120,7 +120,7 @@ class ViTImageEmbedder(
             // 5. Enforce L2 unit-sphere normalization
             normalizeL2(rawVector)
         } catch (e: Exception) {
-            Log.e(TAG, "Inference error during ViT embedding extraction: ${e.message}", e)
+            AppLogger.e(TAG, "Inference error during ViT embedding extraction: ${e.message}", e)
             null
         } finally {
             if (scaled !== croppedBitmap) {
@@ -133,7 +133,7 @@ class ViTImageEmbedder(
         try {
             interpreter?.close()
         } catch (e: Exception) {
-            Log.w(TAG, "Error closing ViT Interpreter: ${e.message}")
+            AppLogger.w(TAG, "Error closing ViT Interpreter: ${e.message}")
         } finally {
             interpreter = null
         }
@@ -180,7 +180,7 @@ class ViTImageEmbedder(
                         buffer
                     }
                 } catch (fallbackError: Exception) {
-                    Log.e(TAG, "Cannot load model asset '$modelPath': ${fallbackError.message}")
+                    AppLogger.e(TAG, "Cannot load model asset '$modelPath': ${fallbackError.message}", fallbackError)
                     null
                 }
             }

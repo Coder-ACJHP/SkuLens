@@ -2,7 +2,7 @@ package com.coder.skulens.engine
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.util.Log
+import com.coder.skulens.util.AppLogger
 import kotlin.math.sqrt
 
 /**
@@ -57,14 +57,14 @@ class TwoStageVisionPipeline(
         val cropped = try {
             cropper.cropTarget(bitmap)
         } catch (e: Exception) {
-            Log.e(TAG, "Stage 1 Cropper failed, falling back to full frame", e)
+            AppLogger.e(TAG, "Stage 1 Cropper failed, falling back to full frame", e)
             bitmap
         }
 
         return try {
             embedder.embed(cropped)
         } catch (e: Exception) {
-            Log.e(TAG, "Stage 2 ViT Embedder failed to extract vector", e)
+            AppLogger.e(TAG, "Stage 2 ViT Embedder failed to extract vector", e)
             null
         } finally {
             // Clean up intermediate cropped bitmap if a new allocation occurred

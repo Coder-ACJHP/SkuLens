@@ -4,9 +4,9 @@ import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.util.Log
 import com.coder.skulens.engine.IVisualSearchPipeline
 import com.coder.skulens.engine.ImagePreprocessor
+import com.coder.skulens.util.AppLogger
 import io.objectbox.BoxStore
 import io.objectbox.query.QueryBuilder.StringOrder
 import java.io.File
@@ -55,7 +55,7 @@ class ProductRepository(
             for (entity in all) {
                 val vec = entity.imageVector
                 if (vec != null && vec.size != targetDim) {
-                    Log.w(
+                    AppLogger.w(
                         TAG,
                         "Found entity SKU=${entity.sku} with legacy vector dim=${vec.size} (expected $targetDim). Migrating..."
                     )
@@ -80,10 +80,10 @@ class ProductRepository(
 
             if (toUpdate.isNotEmpty()) {
                 productBox.put(toUpdate)
-                Log.i(TAG, "Successfully migrated ${toUpdate.size} product vectors to $targetDim-dim.")
+                AppLogger.i(TAG, "Successfully migrated ${toUpdate.size} product vectors to $targetDim-dim.")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error checking/migrating product vector dimensions: ${e.message}", e)
+            AppLogger.e(TAG, "Error checking/migrating product vector dimensions: ${e.message}", e)
         }
     }
 
@@ -201,7 +201,7 @@ class ProductRepository(
         val queryVector = pipeline.extractEmbedding(bitmap) ?: return emptyList()
 
         if (queryVector.size != pipeline.embeddingDimension) {
-            Log.e(
+            AppLogger.e(
                 TAG,
                 "Query vector dimension (${queryVector.size}) does not match pipeline (${pipeline.embeddingDimension})"
             )
@@ -215,7 +215,7 @@ class ProductRepository(
                 .build()
                 .use { it.find() }
         } catch (e: Exception) {
-            Log.e(TAG, "Error executing HNSW nearest neighbors search: ${e.message}", e)
+            AppLogger.e(TAG, "Error executing HNSW nearest neighbors search: ${e.message}", e)
             emptyList()
         }
 
@@ -262,9 +262,9 @@ class ProductRepository(
 
         if (evaluatedResults.isNotEmpty()) {
             val preview = evaluatedResults.take(5).joinToString(", ") { "${it.sku}: ${"%.3f".format(it.similarity)}" }
-            Log.d(TAG, "Search candidates (Top 5): [$preview] | Threshold: $minSimilarity")
+            AppLogger.d(TAG, "Search candidates (Top 5): [$preview] | Threshold: $minSimilarity")
         } else {
-            Log.d(TAG, "No matching candidates found meeting threshold: $minSimilarity")
+            AppLogger.d(TAG, "No matching candidates found meeting threshold: $minSimilarity")
         }
 
         return evaluatedResults.take(maxResults)
@@ -311,7 +311,7 @@ class ProductRepository(
         }
 
         if (sameSkuScores.isEmpty()) {
-            Log.d(TAG, "Calibration requires multiple angles for at least one SKU.")
+            AppLogger.d(TAG, "Calibration requires multiple angles for at least one SKU.")
             return null
         }
 
@@ -334,7 +334,7 @@ class ProductRepository(
             recommendedThreshold = recommended
         )
 
-        Log.i(
+        AppLogger.i(
             TAG,
             "Calibration Report: Same SKU [min=%.3f, mean=%.3f] | Diff SKU [max=%.3f, mean=%.3f] -> Recommended Threshold: %.3f"
                 .format(sameMin, sameMean, diffMax, diffMean, recommended)

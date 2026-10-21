@@ -83,33 +83,11 @@ fun TopHeaderAndNav(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "SiriusLens",
+                    text = "Sirius Lens",
                     style = MaterialTheme.typography.titleLarge,
                     color = Primary,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.5).sp
+                    fontWeight = FontWeight.ExtraBold
                 )
-                Row(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(SurfaceContainerHigh)
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .clip(CircleShape)
-                            .background(Secondary.copy(alpha = pulseAlpha))
-                    )
-                    Text(
-                        text = "Çevrimdışı Mod",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
             }
 
             IconButton(
@@ -151,7 +129,7 @@ fun TopHeaderAndNav(
                 onClick = { onTabSelected(1) }
             )
             NavPill(
-                label = "Katalog",
+                label = "Kayıtlar",
                 icon = Icons.AutoMirrored.Filled.FormatListBulleted,
                 isSelected = selectedTab == 2,
                 modifier = Modifier.weight(1f),

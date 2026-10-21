@@ -3,7 +3,7 @@ package com.coder.skulens.engine
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.RectF
-import android.util.Log
+import com.coder.skulens.util.AppLogger
 import org.tensorflow.lite.Interpreter
 import java.io.FileInputStream
 import java.nio.ByteBuffer
@@ -47,7 +47,7 @@ class BoundingBoxCropper(
 
                 val inputTensor = tflite.getInputTensor(0)
                 val shape = inputTensor.shape()
-                Log.i(
+                AppLogger.i(
                     TAG,
                     "Loaded Stage 1 detector '$modelAssetPath': Input shape=[${shape.joinToString()}], DataType=${inputTensor.dataType()}"
                 )
@@ -58,16 +58,16 @@ class BoundingBoxCropper(
                 }
 
                 interpreter = tflite
-                Log.i(TAG, "Stage 1 ObjectDetector initialized successfully from asset: $modelAssetPath")
+                AppLogger.i(TAG, "Stage 1 ObjectDetector initialized successfully from asset: $modelAssetPath")
             } else {
-                Log.w(
+                AppLogger.w(
                     TAG,
                     "Detector asset '$modelAssetPath' not found or could not be loaded. " +
                         "Stage 1 will operate in pass-through fallback mode."
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize Stage 1 detector '$modelAssetPath': ${e.message}", e)
+            AppLogger.e(TAG, "Failed to initialize Stage 1 detector '$modelAssetPath': ${e.message}", e)
             interpreter = null
         }
     }
@@ -142,18 +142,18 @@ class BoundingBoxCropper(
             }
 
             if (bestBox != null) {
-                Log.d(
+                AppLogger.d(
                     TAG,
                     "Detected garment at [l=%.2f, t=%.2f, r=%.2f, b=%.2f] with score=%.2f"
                         .format(bestBox.left, bestBox.top, bestBox.right, bestBox.bottom, bestScore)
                 )
                 cropBoundingBox(bitmap, bestBox, PADDING_RATIO)
             } else {
-                Log.d(TAG, "No clothing detected with score >= $MIN_CONFIDENCE_THRESHOLD. Using full frame.")
+                AppLogger.d(TAG, "No clothing detected with score >= $MIN_CONFIDENCE_THRESHOLD. Using full frame.")
                 bitmap
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error during Stage 1 tight crop detection: ${e.message}", e)
+            AppLogger.e(TAG, "Error during Stage 1 tight crop detection: ${e.message}", e)
             bitmap
         } finally {
             if (scaled !== bitmap) {
@@ -166,7 +166,7 @@ class BoundingBoxCropper(
         try {
             interpreter?.close()
         } catch (e: Exception) {
-            Log.w(TAG, "Error closing ObjectDetector: ${e.message}")
+            AppLogger.w(TAG, "Error closing ObjectDetector: ${e.message}")
         } finally {
             interpreter = null
         }
@@ -201,7 +201,7 @@ class BoundingBoxCropper(
                         buffer
                     }
                 } catch (fallbackError: Exception) {
-                    Log.e(TAG, "Cannot load detector model '$modelPath': ${fallbackError.message}")
+                    AppLogger.e(TAG, "Cannot load detector model '$modelPath': ${fallbackError.message}", fallbackError)
                     null
                 }
             }
