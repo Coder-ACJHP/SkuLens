@@ -113,3 +113,4 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## 📄 Lisans
 Bu proje [LICENSE](LICENSE) dosyası altında lisanslanmıştır.
+
