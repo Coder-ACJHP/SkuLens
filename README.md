@@ -10,9 +10,9 @@ SkuLens; mağaza, depo veya saha ortamında internet bağlantısına ihtiyaç du
 
 - **Çevrimdışı (%100 Offline) Çalışma:** Sunucu veya bulut bağlantısı gerektirmez. Tüm yapay zeka çıkarımları ve vektör aramaları cihaz üzerinde koşar.
 - **İki Aşamalı Görsel Arama Hattı (Two-Stage Pipeline):**
-  - **Aşama 1 (Nesne Tespiti & Sıkı Kırpma / Arka Plan Temizleme):** Hafif nesne tespit modeli (`clothing_detector.tflite`) ile kıyafet/ürün sınırları milimetrik tespit edilir, mağaza/raf arka plan gürültüsü ve çevre metinler elenerek yalnızca ana ürün alanı izole edilir.
-  - **Aşama 2 (ViT Embedding Çıkarımı):** İzole edilmiş ürün görseli, Vision Transformer tabanlı modele (`fashion_clip.tflite`) aktarılarak 512 boyutlu $L_2$ normalize edilmiş anlamsal özellik vektörü çıkarılır.
-- **Max-Score Çoklu Açı Eşleştirme:** Her ürün için 3 farklı açıya kadar (ön, arka, detay) fotoğraf saklanabilir. Arama sorgusu sırasında adayın tüm açıları taranır ve en yüksek kosinüs benzerliği veren açı nihai ürün skoru olarak belirlenir (`maxScoreMatch`). Bu sayede arka açıdan çekilen bir fotoğraf, ön açıdan dolayı cezalandırılmaz.
+  - **Aşama 1 (Nesne Tespiti & Sıkı Kırpma / Çoklu Ürün Ayrıştırma):** YOLOv8 tabanlı hafif nesne tespit modeli (`clothing_detector.tflite`, 6.1 MB) ile kıyafet sınırları milimetrik tespit edilir; askıdaki iç içe veya yan yana elbiseler tek tek ayrıştırılarak arka plan gürültüsü elenir. Çoklu ürün bulunan fotoğraflarda kullanıcıya seçim modalı (`MultiGarmentSelectorDialog`) sunulur.
+  - **Aşama 2 (ViT Embedding Çıkarımı - INT8 Optimize):** İzole edilmiş ürün görseli, dinamik aralık kuantizasyonuyla **85.3 MB** boyutuna optimize edilmiş Vision Transformer modeline (`fashion_clip.tflite`) aktarılarak 512 boyutlu $L_2$ normalize edilmiş anlamsal özellik vektörü çıkarılır.
+- **Max-Score Çoklu Açı Eşleştirme:** Her ürün için 6 farklı açıya kadar (ön, arka, detay vb.) fotoğraf saklanabilir. Arama sorgusu sırasında adayın tüm açıları taranır ve en yüksek kosinüs benzerliği veren açı nihai ürün skoru olarak belirlenir (`maxScoreMatch`). Bu sayede arka açıdan çekilen bir fotoğraf, ön açıdan dolayı cezalandırılmaz.
 - **Esnek & Genişletilebilir Mimari (Strategy Pattern):** `IVisualSearchPipeline`, `ITightCropper` ve `IImageEmbedder` soyutlamaları sayesinde gelecekteki model değişikliklerinde temel uygulama mimarisi dokunulmadan korunur.
 - **Düşük Depolama Ayak İzi:** DB içinde büyük blob'lar yerine $\le 512\text{px}$ kaliteli JPEG'ler (`filesDir/product_images/`) tutulur. Başarısız işlemlerde yetim dosya temizliği otomatik yapılır.
 - **Akıllı HNSW Boyut Geçişi:** ObjectBox HNSW indeksi 512 boyuta güncellenmiştir. Boyut uyuşmazlıklarında veritabanı güvenle kurtarılır ve kayıtlı görsellerden vektörler otomatik güncellenir.
@@ -27,8 +27,8 @@ SkuLens; mağaza, depo veya saha ortamında internet bağlantısına ihtiyaç du
 | **Kullanıcı Arayüzü** | Jetpack Compose + Material 3 | Modern deklaratif arayüz mimarisi |
 | **Kamera** | CameraX 1.4.0 (`camera-view`, `camera-lifecycle`) | Bellek içi yakalama ve arka plan iş parçacığında işleme |
 | **Model Çalıştırıcı** | TensorFlow Lite (`2.16.1`) & MediaPipe Vision | NCHW / NHWC tensor desteği, XNNPACK çoklu iş parçacığı |
-| **Aşama 1 Modeli** | `clothing_detector.tflite` | 640x640 ürün tespit ve arka plan temizleme modeli |
-| **Aşama 2 Modeli** | `fashion_clip.tflite` | 224x224 ViT tabanlı 512 boyutlu görsel embedding modeli |
+| **Aşama 1 Modeli** | `clothing_detector.tflite` (6.1 MB) | YOLOv8 tabanlı 640x640 çoklu kıyafet tespit ve arka plan temizleme modeli |
+| **Aşama 2 Modeli** | `fashion_clip.tflite` (85.3 MB) | INT8 kuantize edilmiş 224x224 ViT tabanlı 512 boyutlu görsel embedding modeli |
 | **Vektör Veritabanı** | ObjectBox 4.0.3 (HNSW Index) | 512 boyutlu, `COSINE` mesafeli yüksek hızlı yerel vektör arama |
 | **Asenkron Yapı** | Kotlin Coroutines & StateFlow | UI ve IO iş parçacıklarının katı ayrımı |
 | **Mimari** | MVVM + Strategy Pattern | Engine, Data, Presentation ve Model katmanları |
@@ -60,6 +60,8 @@ SkuLens/
 │   │   │   │   │   ├── ProductEntity.kt            # ObjectBox 512-dim HnswIndex varlığı
 │   │   │   │   │   └── ProductRepository.kt        # Max-Score eşleştirme & ürün yönetimi
 │   │   │   │   └── ui/                             # Jetpack Compose UI bileşenleri
+│   │   │   │       ├── components/MultiGarmentSelectorDialog.kt # Çoklu kıyafet seçim modalı
+│   │   │   │       └── components/DetectorDebugScreen.kt        # Dedektör görselleştirme ve telemetri ekranı
 │   │   │   └── AndroidManifest.xml
 │   │   └── test/
 │   │       └── kotlin/com/coder/skulens/
