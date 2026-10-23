@@ -104,47 +104,8 @@ class ProductRepository(
             }
     }
 
-    fun countPhotosBySku(sku: String): Int {
-        val trimmed = sku.trim().uppercase()
-        if (trimmed.isEmpty()) return 0
-        return productBox.query(ProductEntity_.sku.equal(trimmed, StringOrder.CASE_INSENSITIVE))
-            .build()
-            .use { it.count().toInt() }
-    }
-
-    fun saveProduct(sku: String, bitmap: Bitmap): SaveProductResult {
-        val trimmed = sku.trim().uppercase()
-        val currentCount = countPhotosBySku(trimmed)
-        if (currentCount >= MAX_ANGLES_PER_SKU) {
-            val existing = findProductBySku(trimmed)
-            return if (existing != null) {
-                SaveProductResult.AlreadyExists(existing)
-            } else {
-                SaveProductResult.Failure("Maksimum $MAX_ANGLES_PER_SKU açı sınırına ulaşıldı.")
-            }
-        }
-
-        // Downscale image to max standard resolution while preserving full aspect ratio
-        val prepared = ImagePreprocessor.resize(bitmap)
-        val vector = pipeline.extractEmbedding(prepared)
-            ?: return SaveProductResult.Failure("Görsel işlenemedi")
-
-        val fileName = "${UUID.randomUUID()}.jpg"
-        val file = File(imagesDir, fileName)
-        try {
-            FileOutputStream(file).use { out ->
-                check(prepared.compress(Bitmap.CompressFormat.JPEG, 90, out)) { "JPEG yazılamadı" }
-            }
-            productBox.put(
-                ProductEntity(sku = trimmed, imageFile = fileName, imageVector = vector)
-            )
-            calibrateThreshold()
-        } catch (e: Exception) {
-            file.delete()
-            throw e
-        }
-        return SaveProductResult.Success(newCount = currentCount + 1)
-    }
+    fun saveProduct(sku: String, bitmap: Bitmap): SaveProductResult =
+        saveProduct(sku, listOf(bitmap))
 
     fun saveProduct(sku: String, bitmaps: List<Bitmap>): SaveProductResult {
         val trimmed = sku.trim().uppercase()
@@ -342,15 +303,15 @@ class ProductRepository(
         return summary
     }
 
-    fun saveProduct(sku: String, uri: Uri): SaveProductResult {
-        val trimmed = sku.trim().uppercase()
-        val bitmap = ImagePreprocessor.fromUri(contentResolver, uri)
-            ?: return SaveProductResult.Failure("Görsel işlenemedi")
-        return saveProduct(trimmed, bitmap)
-    }
-
     fun decodeBitmapFromUri(uri: Uri): Bitmap? =
         ImagePreprocessor.fromUri(contentResolver, uri)
+
+    fun detectGarments(
+        bitmap: Bitmap,
+        minConfidence: Float = 0.20f,
+        iouThreshold: Float = 0.45f
+    ): List<com.coder.skulens.engine.DetectedGarment> =
+        (pipeline as? com.coder.skulens.engine.TwoStageVisionPipeline)?.detectGarments(bitmap, minConfidence, iouThreshold) ?: emptyList()
 
     fun searchProduct(uri: Uri): List<SearchResult> {
         val bitmap = ImagePreprocessor.fromUri(contentResolver, uri) ?: return emptyList()
@@ -403,7 +364,7 @@ class ProductRepository(
 
     companion object {
         private const val TAG = "ProductRepository"
-        const val MAX_ANGLES_PER_SKU = 3
+        const val MAX_ANGLES_PER_SKU = 6
         const val DEFAULT_MAX_RESULTS = 5
         const val DEFAULT_MIN_SIMILARITY = 0.75f
 

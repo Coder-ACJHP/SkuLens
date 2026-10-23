@@ -15,7 +15,75 @@ class ProductRulesTest {
 
     @Test
     fun testMaxAnglesConstant() {
-        assertEquals(3, ProductRepository.MAX_ANGLES_PER_SKU)
+        assertEquals(6, ProductRepository.MAX_ANGLES_PER_SKU)
+    }
+
+    @Test
+    fun testIoUCalculation() {
+        val boxA = com.coder.skulens.engine.GarmentBox(0f, 0f, 0.5f, 0.5f)
+        val boxB = com.coder.skulens.engine.GarmentBox(0f, 0f, 0.5f, 0.5f)
+        assertEquals(1.0f, BoundingBoxCropper.calculateIoU(boxA, boxB), 0.0001f)
+
+        val disjointBox = com.coder.skulens.engine.GarmentBox(0.6f, 0.6f, 1f, 1f)
+        assertEquals(0.0f, BoundingBoxCropper.calculateIoU(boxA, disjointBox), 0.0001f)
+
+        // 50% overlap along one dimension
+        val halfOverlap = com.coder.skulens.engine.GarmentBox(0.25f, 0f, 0.75f, 0.5f)
+        // intersection: [0.25, 0, 0.5, 0.5] -> w=0.25, h=0.5, area=0.125
+        // areaA = 0.25, areaB = 0.25, union = 0.5 - 0.125 = 0.375
+        // IoU = 0.125 / 0.375 = 1/3
+        assertEquals(1f / 3f, BoundingBoxCropper.calculateIoU(boxA, halfOverlap), 0.0001f)
+    }
+
+    @Test
+    fun testNmsSuppression() {
+        val highConfBox = com.coder.skulens.engine.GarmentBox(0.1f, 0.1f, 0.5f, 0.5f) to 0.95f
+        val overlappingDuplicate = com.coder.skulens.engine.GarmentBox(0.12f, 0.11f, 0.51f, 0.49f) to 0.80f // high IoU with highConfBox
+        val separateGarment = com.coder.skulens.engine.GarmentBox(0.6f, 0.1f, 0.95f, 0.5f) to 0.90f // separate dress
+
+        val candidates = listOf(overlappingDuplicate, separateGarment, highConfBox)
+        val filtered = BoundingBoxCropper.applyNms(candidates, iouThreshold = 0.45f)
+
+        assertEquals(2, filtered.size)
+        assertTrue(filtered.any { it.second == 0.95f })
+        assertTrue(filtered.any { it.second == 0.90f })
+    }
+
+    @Test
+    fun testHorizontalAwareNmsPreservesStackedDresses() {
+        // Two dresses hanging next to each other on a rack (vertical, horizontally shifted, overlapping IoU > 0.45)
+        val frontDress = com.coder.skulens.engine.GarmentBox(0.15f, 0.10f, 0.45f, 0.90f) to 0.90f // center 0.30, width 0.30
+        val adjacentDress = com.coder.skulens.engine.GarmentBox(0.23f, 0.10f, 0.53f, 0.90f) to 0.70f // center 0.38, width 0.30
+
+        // A duplicate box of the front dress (same horizontal position, shift ~3%)
+        val duplicateFront = com.coder.skulens.engine.GarmentBox(0.16f, 0.11f, 0.46f, 0.89f) to 0.85f // center 0.31
+
+        val candidates = listOf(duplicateFront, adjacentDress, frontDress)
+        val filtered = BoundingBoxCropper.applyNms(candidates, iouThreshold = 0.45f)
+
+        // Duplicate must be suppressed, but the adjacent hanging dress must be preserved!
+        assertEquals(2, filtered.size)
+        assertTrue(filtered.any { it.second == 0.90f })
+        assertTrue(filtered.any { it.second == 0.70f })
+    }
+
+    @Test
+    fun testRackClusterDoesNotSuppressIndividualDresses() {
+        // Enclosing rack box covering all dresses
+        val macroRackBox = com.coder.skulens.engine.GarmentBox(0.05f, 0.05f, 0.95f, 0.95f) to 0.92f
+        // 3 individual hanging dresses inside the rack
+        val dress1 = com.coder.skulens.engine.GarmentBox(0.10f, 0.10f, 0.35f, 0.90f) to 0.88f
+        val dress2 = com.coder.skulens.engine.GarmentBox(0.38f, 0.10f, 0.62f, 0.90f) to 0.86f
+        val dress3 = com.coder.skulens.engine.GarmentBox(0.65f, 0.10f, 0.90f, 0.90f) to 0.84f
+
+        val candidates = listOf(macroRackBox, dress1, dress2, dress3)
+        val filtered = BoundingBoxCropper.applyNms(candidates, iouThreshold = 0.45f)
+
+        // The enclosing macro rack must be removed, and all 3 individual dresses preserved in left-to-right order!
+        assertEquals(3, filtered.size)
+        assertEquals(0.10f, filtered[0].first.left, 0.001f)
+        assertEquals(0.38f, filtered[1].first.left, 0.001f)
+        assertEquals(0.65f, filtered[2].first.left, 0.001f)
     }
 
     @Test

@@ -26,9 +26,15 @@ import kotlin.math.sqrt
  * Uses Max-Score Cosine Similarity matching across multiple registered angles per product.
  */
 class TwoStageVisionPipeline(
-    private val cropper: ITightCropper,
-    private val embedder: IImageEmbedder
+    val cropper: ITightCropper,
+    val embedder: IImageEmbedder
 ) : IVisualSearchPipeline, AutoCloseable {
+
+    fun detectGarments(
+        bitmap: Bitmap,
+        minConfidence: Float = 0.20f,
+        iouThreshold: Float = 0.45f
+    ): List<DetectedGarment> = cropper.detectObjects(bitmap, minConfidence, iouThreshold)
 
     /**
      * Secondary convenience constructor instantiating the default [BoundingBoxCropper]

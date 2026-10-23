@@ -104,6 +104,12 @@ fun SettingsScreen(
     var isMigrating by remember { mutableStateOf(false) }
     var migrationProgress by remember { mutableStateOf("") }
     var showRestartDialog by remember { mutableStateOf(false) }
+    var showDetectorDebug by remember { mutableStateOf(false) }
+
+    if (showDetectorDebug) {
+        DetectorDebugScreen(onNavigateBack = { showDetectorDebug = false })
+        return
+    }
 
     fun refreshStorageVolumes() {
         storageVolumes = StorageManager.getAvailableStorageVolumes(context)
@@ -318,6 +324,22 @@ fun SettingsScreen(
                         )
                         Spacer(Modifier.height(8.dp))
                     }
+                }
+            }
+
+            // Section: Faz 0 Dedektör Test Laboratuvarı
+            SettingsCard(
+                title = "Faz 0: Dedektör Laboratuvarı",
+                icon = Icons.Default.Tune
+            ) {
+                Button(
+                    onClick = { showDetectorDebug = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryContainer)
+                ) {
+                    Icon(Icons.Default.Tune, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Dedektör Test Ekranını Aç", color = Primary, fontWeight = FontWeight.Bold)
                 }
             }
 

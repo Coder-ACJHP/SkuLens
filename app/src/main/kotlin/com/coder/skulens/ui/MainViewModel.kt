@@ -8,6 +8,10 @@ import com.coder.skulens.data.ProductItem
 import com.coder.skulens.data.ProductRepository
 import com.coder.skulens.data.SaveProductResult
 import com.coder.skulens.data.SearchResult
+import com.coder.skulens.engine.DetectedGarment
+import com.coder.skulens.engine.ImagePreprocessor
+import com.coder.skulens.ui.components.MultiDetectionState
+import com.coder.skulens.util.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -45,6 +49,12 @@ class MainViewModel(
 
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving
+
+    private val _multiDetectionState = MutableStateFlow<MultiDetectionState?>(null)
+    val multiDetectionState: StateFlow<MultiDetectionState?> = _multiDetectionState
+
+    private val _isDetecting = MutableStateFlow(false)
+    val isDetecting: StateFlow<Boolean> = _isDetecting
 
     private var checkSkuJob: Job? = null
 
@@ -86,23 +96,82 @@ class MainViewModel(
         _confirmedSku.value = ""
         _stagedBitmaps.value = emptyList()
         _duplicateProduct.value = null
+        _multiDetectionState.value = null
     }
 
     fun addStagedAngle(bitmap: Bitmap) {
-        if (_stagedBitmaps.value.size < ProductRepository.MAX_ANGLES_PER_SKU) {
-            _stagedBitmaps.value = _stagedBitmaps.value + bitmap
+        val remaining = ProductRepository.MAX_ANGLES_PER_SKU - _stagedBitmaps.value.size
+        if (remaining <= 0) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            _isDetecting.value = true
+            try {
+                val detected = repository.detectGarments(bitmap)
+                if (detected.size > 1) {
+                    _multiDetectionState.value = MultiDetectionState(
+                        sourceBitmap = bitmap,
+                        garments = detected,
+                        maxSelectable = remaining
+                    )
+                } else if (detected.size == 1) {
+                    val crop = detected[0].crop
+                    _stagedBitmaps.value = _stagedBitmaps.value + crop
+                } else {
+                    val prepared = ImagePreprocessor.resize(bitmap)
+                    _stagedBitmaps.value = _stagedBitmaps.value + prepared
+                }
+            } catch (e: Exception) {
+                AppLogger.e("MainViewModel", "Detection error in addStagedAngle: ${e.message}", e)
+                val prepared = ImagePreprocessor.resize(bitmap)
+                _stagedBitmaps.value = _stagedBitmaps.value + prepared
+            } finally {
+                _isDetecting.value = false
+            }
         }
     }
 
     fun addStagedAngle(uri: Uri?) {
         if (uri == null) return
-        if (_stagedBitmaps.value.size >= ProductRepository.MAX_ANGLES_PER_SKU) return
+        val remaining = ProductRepository.MAX_ANGLES_PER_SKU - _stagedBitmaps.value.size
+        if (remaining <= 0) return
+
         viewModelScope.launch(Dispatchers.IO) {
-            val bitmap = repository.decodeBitmapFromUri(uri)
-            if (bitmap != null) {
-                _stagedBitmaps.value = _stagedBitmaps.value + bitmap
+            _isDetecting.value = true
+            try {
+                val bitmap = repository.decodeBitmapFromUri(uri) ?: return@launch
+                val detected = repository.detectGarments(bitmap)
+                if (detected.size > 1) {
+                    _multiDetectionState.value = MultiDetectionState(
+                        sourceBitmap = bitmap,
+                        garments = detected,
+                        maxSelectable = remaining
+                    )
+                } else if (detected.size == 1) {
+                    val crop = detected[0].crop
+                    _stagedBitmaps.value = _stagedBitmaps.value + crop
+                } else {
+                    val prepared = ImagePreprocessor.resize(bitmap)
+                    _stagedBitmaps.value = _stagedBitmaps.value + prepared
+                }
+            } catch (e: Exception) {
+                AppLogger.e("MainViewModel", "Detection error in gallery addStagedAngle: ${e.message}", e)
+            } finally {
+                _isDetecting.value = false
             }
         }
+    }
+
+    fun confirmMultiGarmentSelection(selected: List<DetectedGarment>) {
+        val remaining = ProductRepository.MAX_ANGLES_PER_SKU - _stagedBitmaps.value.size
+        val toAdd = selected.take(remaining).map { it.crop }
+        if (toAdd.isNotEmpty()) {
+            _stagedBitmaps.value = _stagedBitmaps.value + toAdd
+        }
+        _multiDetectionState.value = null
+    }
+
+    fun dismissMultiGarmentSelection() {
+        _multiDetectionState.value = null
     }
 
     fun removeStagedAngle(index: Int) {
@@ -138,31 +207,9 @@ class MainViewModel(
     fun isSuccessMessage(msg: String): Boolean =
         !msg.startsWith("Hata") && !msg.contains("işlenemedi")
 
-    // Kamera kaynağı (bitmap zaten ≤512px gelir)
-    fun saveNewProduct(bitmap: Bitmap) {
-        val sku = _confirmedSku.value
-        if (sku.isNotBlank()) {
-            saveNewProduct(sku, bitmap)
-        }
-    }
-
-    fun saveNewProduct(sku: String, bitmap: Bitmap) =
-        runSave(sku) { repository.saveProduct(sku, bitmap) }
-
     fun searchSimilarProducts(bitmap: Bitmap) {
         runSearch { repository.searchProduct(bitmap) }
     }
-
-    // Galeri kaynağı (decode + EXIF + 512px küçültme IO thread'inde repository içinde yapılır)
-    fun saveNewProduct(uri: Uri?) {
-        val sku = _confirmedSku.value
-        if (uri != null && sku.isNotBlank()) {
-            saveNewProduct(sku, uri)
-        }
-    }
-
-    fun saveNewProduct(sku: String, uri: Uri) =
-        runSave(sku) { repository.saveProduct(sku, uri) }
 
     fun searchSimilarProducts(uri: Uri?) {
         if (uri != null) {

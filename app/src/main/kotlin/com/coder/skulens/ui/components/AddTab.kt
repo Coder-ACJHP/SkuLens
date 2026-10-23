@@ -10,6 +10,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,9 +59,12 @@ fun AddTab(viewModel: MainViewModel) {
     val skuInput by viewModel.skuInput.collectAsState()
     val confirmedSku by viewModel.confirmedSku.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
+    val isDetecting by viewModel.isDetecting.collectAsState()
+    val multiDetectionState by viewModel.multiDetectionState.collectAsState()
     val duplicateProduct by viewModel.duplicateProduct.collectAsState()
     val stagedBitmaps by viewModel.stagedBitmaps.collectAsState()
     val isConfirmed = confirmedSku.isNotBlank()
+    val maxAngles = com.coder.skulens.data.ProductRepository.MAX_ANGLES_PER_SKU
 
     val galleryPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
@@ -100,11 +104,11 @@ fun AddTab(viewModel: MainViewModel) {
 
             if (isConfirmed) {
                 val stagedCount = stagedBitmaps.size
-                val nextAngle = (stagedCount + 1).coerceAtMost(3)
+                val nextAngle = (stagedCount + 1).coerceAtMost(maxAngles)
 
                 val (targetPrimaryWeight, targetSecondaryWeight) = when {
                     stagedCount == 0 -> 3f to 1f
-                    stagedCount < 3 -> 2f to 2f
+                    stagedCount < maxAngles -> 2f to 2f
                     else -> 1f to 3f
                 }
                 val primaryWeight by animateFloatAsState(
@@ -119,36 +123,38 @@ fun AddTab(viewModel: MainViewModel) {
                 )
 
                 CameraCapture(
-                    captureLabel = if (stagedCount >= 3) "3/3" else "Açı Çek ($nextAngle/3)",
+                    captureLabel = if (stagedCount >= maxAngles) "$maxAngles/$maxAngles" else "Açı Çek ($nextAngle/$maxAngles)",
                     onCaptured = viewModel::addStagedAngle,
-                    isActive = !isSaving && stagedCount < 3 && message == null,
-                    topBadgeText = "AÇI $stagedCount/3",
+                    isActive = !isSaving && !isDetecting && stagedCount < maxAngles && message == null,
+                    topBadgeText = "AÇI $stagedCount/$maxAngles",
                     bottomHintText = "Ürünü Kadraja Hizalayın",
                     helperPrompt = when {
-                        stagedCount == 0 -> "1. Açıyı net ve aydınlık çekin."
-                        stagedCount < 3 -> "Farklı bir açı çekin ($nextAngle/3) veya Kaydet'e basın."
-                        else -> "3 açı tamamlandı. Kaydet butonuna basın."
+                        stagedCount == 0 -> "1. Açıyı net çekin veya çoklu elbise fotoğrafı çekin."
+                        stagedCount < maxAngles -> "Farklı bir açı çekin ($nextAngle/$maxAngles) veya Kaydet'e basın."
+                        else -> "$maxAngles açı tamamlandı. Kaydet butonuna basın."
                     },
                     secondaryButtonText = if (stagedCount == 0) "Kaydet" else "Kaydet ($stagedCount Açı)",
                     onSecondaryClick = viewModel::saveStagedProduct,
-                    secondaryButtonEnabled = stagedCount > 0 && !isSaving,
+                    secondaryButtonEnabled = stagedCount > 0 && !isSaving && !isDetecting,
                     primaryButtonWeight = primaryWeight,
                     secondaryButtonWeight = secondaryWeight,
-                    onGalleryClick = if (stagedCount < 3 && !isSaving) {
+                    onGalleryClick = if (stagedCount < maxAngles && !isSaving && !isDetecting) {
                         { galleryPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
                     } else null,
                     slotsContent = {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            for (i in 0 until 3) {
+                            for (i in 0 until maxAngles) {
                                 val bitmap = stagedBitmaps.getOrNull(i)
                                 AngleThumbnailSlot(
                                     slotNumber = i + 1,
                                     bitmap = bitmap,
                                     onRemove = { viewModel.removeStagedAngle(i) },
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.size(80.dp)
                                 )
                             }
                         }
@@ -162,7 +168,15 @@ fun AddTab(viewModel: MainViewModel) {
             Spacer(Modifier.height(110.dp))
         }
 
-        if (isSaving) {
+        multiDetectionState?.let { state ->
+            MultiGarmentSelectorDialog(
+                state = state,
+                onConfirm = viewModel::confirmMultiGarmentSelection,
+                onDismiss = viewModel::dismissMultiGarmentSelection
+            )
+        }
+
+        if (isSaving || isDetecting) {
             FullScreenLoading(
                 type = LoadingType.Add,
                 isOverlay = true
